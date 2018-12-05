@@ -1,6 +1,7 @@
 ﻿using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.Experimental.Rendering;
+using PRP.PortalSystem;
 
 namespace PRP {
 	public class PortalPipeline : RenderPipeline {
@@ -9,6 +10,8 @@ namespace PRP {
 		private DrawRendererFlags drawFlags;
 		private CommandBuffer buffer = new CommandBuffer { name = "Render Camera" };
 		private Material errorMaterial;
+		private Material stencilIncrementMaterial;
+		private Material stencilDecrementMaterial;
 
 		private const int MAX_VISIBLE_LIGHTS = 16;
 
@@ -25,6 +28,8 @@ namespace PRP {
 
 		public PortalPipeline(bool dynamicBatching, bool instancing) {
 			errorMaterial = new Material(Shader.Find("Hidden/InternalErrorShader")) { hideFlags = HideFlags.HideAndDontSave };
+			stencilIncrementMaterial = new Material(Shader.Find("PRP/StencilIncrementer")) { hideFlags = HideFlags.HideAndDontSave };
+			stencilDecrementMaterial = new Material(Shader.Find("PRP/StencilDecrementer")) { hideFlags = HideFlags.HideAndDontSave };
 			if (dynamicBatching) {
 				drawFlags = DrawRendererFlags.EnableDynamicBatching;
 			}
@@ -114,6 +119,75 @@ namespace PRP {
 			renderContext.DrawRenderers(cull.visibleRenderers, ref drawSettings, filterSettings);
 		}
 #endif
+
+		private void RenderPortals(ScriptableRenderContext renderContext, Camera camera) {
+
+			// Structure Only, For Now
+
+			Matrix4x4 baseProjection;
+
+			Portal[] basePortals = new Portal[0];
+			RenderPortalLayer(basePortals, 0);
+
+			foreach (Portal lay1Portal in basePortals) {
+
+				StencilPunchThrough(lay1Portal);
+				//Matrix4x4 lay1Projection = lay1Portal.TransformProjection(baseProjection);
+
+				Portal[] lay2Visible = new Portal[0];
+				RenderPortalLayer(lay2Visible, 1);
+
+				foreach (Portal lay2Portal in lay2Visible) {
+					//if (lay2Portal == lay1Portal.outputPortal) continue;
+
+					StencilPunchThrough(lay2Portal);
+					//Matrix4x4 lay2Projection = lay2Portal.TransformProjection(lay1Projection);
+
+					Portal[] lay3Visible = new Portal[0];
+					RenderPortalLayer(lay3Visible, 2);
+
+					foreach (Portal lay3Portal in lay3Visible) {
+						//if (lay3Portal == lay2Portal.outputPortal) continue;
+
+						StencilPunchThrough(lay3Portal);
+						//Matrix4x4 lay3Projection = lay3Portal.TransformProjection(lay2Projection);
+
+						RenderPortalLayer(3);
+
+						StencilCollapse(lay3Portal);
+					}
+
+					StencilCollapse(lay2Portal);
+				}
+
+				StencilCollapse(lay1Portal);
+			}
+		}
+
+		private void RenderPortalLayer(Portal[] nextLayerPortals, int depth) {
+			foreach (Portal portal in nextLayerPortals) {
+				StencilPunchThrough(portal);
+			}
+
+			RenderPortalLayer(depth);
+
+			foreach (Portal portal in nextLayerPortals) {
+				StencilCollapse(portal);
+			}
+
+		}
+
+		private void RenderPortalLayer(int depth) {
+
+		}
+
+		private void StencilPunchThrough(Portal portal) {
+
+		}
+
+		private void StencilCollapse(Portal portal) {
+
+		}
 
 		private void ConfigureLights() {
 			Vector4 v;
