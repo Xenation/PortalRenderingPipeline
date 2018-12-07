@@ -1,4 +1,4 @@
-﻿Shader "PRP/StencilDecrementer" {
+﻿Shader "Hidden/PRP/StencilUnmarkFiller" {
 	Properties {
 		
 	}
@@ -6,18 +6,20 @@
 		Pass {
 			ZWrite Off
 			Blend SrcAlpha OneMinusSrcAlpha
-			Stencil {
-				Ref 1
+			Stencil { // Always writes 1 at most significant bit
+				Ref 0
+				WriteMask 128
 				Comp Always
-				Pass DecrSat
+				Pass Replace
+				ZFail Replace
 			}
-
+			
 			CGPROGRAM
 			#pragma target 3.5
 
 			#pragma vertex vert
 			#pragma fragment frag
-			
+
 			struct VertexIntput {
 				float4 vertex : POSITION;
 			};
@@ -28,12 +30,12 @@
 
 			VertexOutput vert(VertexIntput i) {
 				VertexOutput o;
-				o.clipPos = UnityObjectToClipPos(i.vertex);
+				o.clipPos = i.vertex;
 				return o;
 			}
 
 			fixed4 frag(VertexOutput i) : SV_TARGET {
-				return fixed4(0, 1, 0, 0.25);
+				return fixed4(0, 0, 0, 0);
 			}
 
 			ENDCG

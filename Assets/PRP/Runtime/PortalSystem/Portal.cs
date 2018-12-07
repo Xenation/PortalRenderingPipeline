@@ -1,4 +1,6 @@
-﻿using UnityEngine;
+﻿using System.Runtime.InteropServices;
+using UnityEngine;
+using UnityEngine.Experimental.Rendering;
 
 namespace PRP.PortalSystem {
 	[RequireComponent(typeof(Renderer))]
@@ -31,7 +33,7 @@ namespace PRP.PortalSystem {
 		}
 
 		public Matrix4x4 TransformMatrix(Matrix4x4 mat) {
-			return outputPortal.transform.localToWorldMatrix * worldToPortal * mat;
+			return mat * worldToPortal * outputPortal.transform.localToWorldMatrix;
 		}
 
 		public Vector3 TransformPosition(Vector3 p) {
@@ -42,5 +44,57 @@ namespace PRP.PortalSystem {
 			return outputPortal.transform.localToWorldMatrix.MultiplyVector(worldToPortal.MultiplyVector(d));
 		}
 
+	}
+
+	[StructLayout(LayoutKind.Sequential)]
+	public unsafe struct HCamProp {
+		private const int kNumLayers = 32;
+
+		public Rect screenRect;
+		public Vector3 viewDir;
+		public float projectionNear;
+		public float projectionFar;
+		public float cameraNear;
+		public float cameraFar;
+		public float cameraAspect;
+
+		public Matrix4x4 cameraToWorld;
+		public Matrix4x4 actualWorldToClip;
+		public Matrix4x4 cameraClipToWorld;
+		public Matrix4x4 cameraWorldToClip;
+		public Matrix4x4 implicitProjection;
+		public Matrix4x4 stereoWorldToClipLeft;
+		public Matrix4x4 stereoWorldToClipRight;
+		public Matrix4x4 worldToCamera;
+
+		public Vector3 up;
+		public Vector3 right;
+		public Vector3 transformDirection;
+		public Vector3 cameraEuler;
+		public Vector3 velocity;
+
+		public float farPlaneWorldSpaceLength;
+
+		public uint rendererCount;
+		
+		internal fixed float _shadowCullPlanes[6 * 4];
+		internal fixed float _cameraCullPlanes[6 * 4];
+
+		public float baseFarDistance;
+
+		public Vector3 shadowCullCenter;
+		internal fixed float layerCullDistances[kNumLayers];
+		int layerCullSpherical;
+
+		public CoreCameraValues coreCameraValues;
+		public uint cameraType;
+		private int projectionIsOblique;
+
+		public static T CopyStruct<T>(ref object s1) {
+			GCHandle handle = GCHandle.Alloc(s1, GCHandleType.Pinned);
+			T typedStruct = (T) Marshal.PtrToStructure(handle.AddrOfPinnedObject(), typeof(T));
+			handle.Free();
+			return typedStruct;
+		}
 	}
 }

@@ -52,6 +52,8 @@ UNITY_INSTANCING_BUFFER_START(PerInstance)
 	UNITY_DEFINE_INSTANCED_PROP(float4, _Color)
 UNITY_INSTANCING_BUFFER_END(PerInstance)
 
+float4 _AmbientLight;
+
 
 struct VertexInput {
 	float4 pos : POSITION;
@@ -96,6 +98,7 @@ float4 DiffusePassFragment(VertexOutput input) : SV_TARGET {
 		diffuseLight += DiffuseLight(lightIndex, input.normal, input.worldPos.xyz);
 	}
 
+	diffuseLight = max(diffuseLight, _AmbientLight.rgb);
 	float3 color = diffuseLight * albedo;
 	return float4(color, 1);
 }

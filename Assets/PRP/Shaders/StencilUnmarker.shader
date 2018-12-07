@@ -1,4 +1,4 @@
-﻿Shader "PRP/StencilIncrementer" {
+﻿Shader "Hidden/PRP/StencilUnmarker" {
 	Properties {
 		
 	}
@@ -6,18 +6,20 @@
 		Pass {
 			ZWrite Off
 			Blend SrcAlpha OneMinusSrcAlpha
-			Stencil {
-				Ref 1
+			Stencil { // Always writes 0 at most significant bit
+				Ref 0
+				WriteMask 128
 				Comp Always
-				Pass IncrSat
+				Pass Replace
+				ZFail Replace
 			}
-			
+
 			CGPROGRAM
 			#pragma target 3.5
 
 			#pragma vertex vert
 			#pragma fragment frag
-
+			
 			struct VertexIntput {
 				float4 vertex : POSITION;
 			};
@@ -33,7 +35,7 @@
 			}
 
 			fixed4 frag(VertexOutput i) : SV_TARGET {
-				return fixed4(1, 0, 0, 0.25);
+				return fixed4(0, 0, 0, 0);
 			}
 
 			ENDCG
