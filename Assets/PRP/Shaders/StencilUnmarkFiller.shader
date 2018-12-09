@@ -5,13 +5,12 @@
 	SubShader {
 		Pass {
 			ZWrite Off
-			Blend SrcAlpha OneMinusSrcAlpha
+			ZTest Always
+			Blend Zero One
 			Stencil { // Always writes 1 at most significant bit
-				Ref 0
-				WriteMask 128
+				Ref 1
 				Comp Always
-				Pass Replace
-				ZFail Replace
+				Pass DecrSat
 			}
 			
 			CGPROGRAM

@@ -29,8 +29,7 @@
 				"LightMode" = "PRP"
 			}
 			Stencil {
-				Ref 128
-				ReadMask 128
+				Ref 0
 				Comp Equal
 			}
 

@@ -1,16 +1,14 @@
-﻿Shader "Hidden/PRP/StencilMarkFiller" {
+﻿Shader "Hidden/PRP/DepthOnly" {
 	Properties {
 		
 	}
 	SubShader {
 		Pass {
-			ZWrite Off
-			ZTest Always
+			ZWrite On
 			Blend Zero One
 			Stencil { // Always writes 1 at most significant bit
-				Ref 1
-				Comp Always
-				Pass IncrSat
+				Ref 0
+				Comp Equal
 			}
 			
 			CGPROGRAM
@@ -29,7 +27,7 @@
 
 			VertexOutput vert(VertexIntput i) {
 				VertexOutput o;
-				o.clipPos = i.vertex;
+				o.clipPos = UnityObjectToClipPos(i.vertex);
 				return o;
 			}
 

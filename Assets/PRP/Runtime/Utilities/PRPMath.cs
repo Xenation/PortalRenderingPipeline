@@ -17,5 +17,24 @@ namespace PRP {
 			};
 		}
 
+		public static void SetObliqueNearPlane(ref Matrix4x4 projMatrix, Vector4 plane) {
+			Vector4 q;
+			q.x = (Mathf.Sign(plane.x) + projMatrix.m02) / projMatrix.m00;
+			q.y = (Mathf.Sign(plane.y) + projMatrix.m12) / projMatrix.m11;
+			q.z = -1f;
+			q.w = (1f + projMatrix.m22) / projMatrix.m23;
+
+			Vector4 c = plane * (2f / Vector4.Dot(plane, q));
+
+			projMatrix.m20 = c.x;
+			projMatrix.m21 = c.y;
+			projMatrix.m22 = c.z + 1f;
+			projMatrix.m23 = c.w;
+		}
+
+		public static void SetObliqueNearPlane(ref Matrix4x4 projMatrix, Plane plane) {
+			SetObliqueNearPlane(ref projMatrix, new Vector4(plane.normal.x, plane.normal.y, plane.normal.z, plane.distance));
+		}
+
 	}
 }

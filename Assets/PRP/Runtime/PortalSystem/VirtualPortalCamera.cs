@@ -6,7 +6,7 @@ namespace PRP.PortalSystem {
 	public class VirtualPortalCamera {
 
 		[StructLayout(LayoutKind.Sequential)]
-		unsafe public struct CoreVirtualCameraValues {
+		public unsafe struct CoreVirtualCameraValues {
 			public int filterMode;
 			public uint cullingMask;
 			public int guid;
@@ -14,7 +14,7 @@ namespace PRP.PortalSystem {
 		};
 
 		[StructLayout(LayoutKind.Sequential)]
-		private unsafe struct VirtualCameraProperties {
+		public unsafe struct VirtualCameraProperties {
 			public const int kNumLayers = 32;
 
 			public Rect screenRect;
@@ -61,7 +61,7 @@ namespace PRP.PortalSystem {
 
 		private Camera referenceCamera;
 		public Vector3 position;
-		private VirtualCameraProperties properties;
+		public VirtualCameraProperties properties;
 		
 		public Matrix4x4 worldToCamera {
 			get {
@@ -95,7 +95,7 @@ namespace PRP.PortalSystem {
 
 		private void UpdateMatricesFromWTC() {
 			properties.cameraWorldToClip = properties.actualWorldToClip = properties.implicitProjection * properties.worldToCamera;
-			properties.cameraClipToWorld = properties.cameraWorldToClip.inverse;
+			properties.cameraClipToWorld = properties.implicitProjection.inverse * properties.cameraToWorld;
 			properties.cameraToWorld = properties.worldToCamera.inverse;
 			unsafe {
 				Plane[] frustrumPlanes = GeometryUtility.CalculateFrustumPlanes(properties.actualWorldToClip);
@@ -160,6 +160,10 @@ namespace PRP.PortalSystem {
 					properties._shadowCullPlanes[i] = properties._cameraCullPlanes[i];
 				}
 			}
+		}
+
+		public Plane[] GetCullingPlanes() {
+			return GeometryUtility.CalculateFrustumPlanes(properties.actualWorldToClip);
 		}
 
 		public CameraProperties GetCameraProperties() {

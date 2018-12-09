@@ -10,11 +10,13 @@ namespace PRP {
 			public ScriptableRenderContext renderContext;
 			public Camera camera;
 			public VirtualPortalCamera virtualCamera;
+			public Portal output;
 
-			public PortalContext CopyWith(Matrix4x4 nWorldToCamera, Vector3 nPosition) {
+			public PortalContext CopyWith(Matrix4x4 nWorldToCamera, Vector3 nPosition, Portal nOutput) {
 				PortalContext portalContext = new PortalContext() { renderContext = renderContext, camera = camera, virtualCamera = virtualCamera.Copy() }; // TODO switch virtual camera to struct to avoid garbage
 				portalContext.virtualCamera.position = nPosition;
 				portalContext.virtualCamera.worldToCamera = nWorldToCamera;
+				portalContext.output = nOutput;
 				return portalContext;
 			}
 		}
@@ -27,6 +29,7 @@ namespace PRP {
 		private Material stencilUnmarkerMaterial;
 		private Material stencilMarkFiller;
 		private Material stencilUnmarkFiller;
+		private Material depthOnly;
 
 		private Mesh fullScreenQuad;
 		//private Camera portalVirtualCamera;
@@ -52,6 +55,7 @@ namespace PRP {
 			stencilUnmarkerMaterial = new Material(Shader.Find("Hidden/PRP/StencilUnmarker")) { hideFlags = HideFlags.HideAndDontSave };
 			stencilMarkFiller = new Material(Shader.Find("Hidden/PRP/StencilMarkFiller")) { hideFlags = HideFlags.HideAndDontSave };
 			stencilUnmarkFiller = new Material(Shader.Find("Hidden/PRP/StencilUnmarkFiller")) { hideFlags = HideFlags.HideAndDontSave };
+			depthOnly = new Material(Shader.Find("Hidden/PRP/DepthOnly")) { hideFlags = HideFlags.HideAndDontSave };
 
 			fullScreenQuad = new Mesh();
 			fullScreenQuad.vertices = new Vector3[] {
@@ -65,8 +69,8 @@ namespace PRP {
 			//GameObject virtCamGO = new GameObject("VirtualCam");
 			//portalVirtualCamera = virtCamGO.AddComponent<Camera>();
 			//virtCamGO.hideFlags = HideFlags.HideAndDontSave;
-			GameObject debObj = new GameObject();
-			debObj.hideFlags = HideFlags.HideAndDontSave;
+			GameObject debObj = new GameObject("PRP Debugger (Not Saved)");
+			debObj.hideFlags = HideFlags.DontSave;
 			debugger = debObj.AddComponent<PRPDebugger>();
 
 			if (dynamicBatching) {
@@ -190,7 +194,6 @@ namespace PRP {
 				p.renderer = p.transform.GetComponentInChildren<MeshRenderer>();
 				p.Synchronize();
 			}
-			RenderBaseLayer(basePortalContext, basePortals);
 
 			buffer.BeginSample("Layer 1");
 			renderContext.ExecuteCommandBuffer(buffer);
@@ -198,11 +201,15 @@ namespace PRP {
 			foreach (Portal lay1Portal in basePortals) {
 
 				// Update Context
-				PortalContext lay1PortalContext = basePortalContext.CopyWith(lay1Portal.TransformMatrix(basePortalContext.virtualCamera.worldToCamera), lay1Portal.TransformPosition(basePortalContext.virtualCamera.position));
+				PortalContext lay1PortalContext = basePortalContext.CopyWith(lay1Portal.TransformInverseMatrix(basePortalContext.virtualCamera.worldToCamera), lay1Portal.TransformPosition(basePortalContext.virtualCamera.position), lay1Portal.outputPortal);
+				//Matrix4x4 lay1Proj = lay1PortalContext.camera.projectionMatrix;
+				//PRPMath.SetObliqueNearPlane(ref lay1Proj, new Plane(lay1PortalContext.virtualCamera.worldToCamera.MultiplyVector(lay1Portal.portalPlane.normal), lay1PortalContext.virtualCamera.worldToCamera.MultiplyPoint3x4(lay1Portal.transform.position)));
+				//lay1PortalContext.virtualCamera.projectionMatrix = lay1Proj;
+				StencilMarkFill(lay1PortalContext);
+				StencilUnmark(basePortalContext, lay1Portal);
 				debugger.AddCamera(lay1PortalContext.virtualCamera);
 
 				Portal[] lay2Visible = basePortals; // tmp
-				RenderPortalLayer(basePortalContext, lay1PortalContext, lay1Portal, lay2Visible);
 
 				buffer.BeginSample("Layer 2");
 				renderContext.ExecuteCommandBuffer(buffer);
@@ -211,35 +218,59 @@ namespace PRP {
 					if (lay2Portal == lay1Portal.outputPortal) continue;
 
 					// Update Context
-					PortalContext lay2PortalContext = lay1PortalContext.CopyWith(lay1Portal.TransformMatrix(lay1PortalContext.virtualCamera.worldToCamera), lay1Portal.TransformPosition(lay1PortalContext.virtualCamera.position));
+					PortalContext lay2PortalContext = lay1PortalContext.CopyWith(lay2Portal.TransformInverseMatrix(lay1PortalContext.virtualCamera.worldToCamera), lay2Portal.TransformPosition(lay1PortalContext.virtualCamera.position), lay2Portal.outputPortal);
+					//Matrix4x4 lay2Proj = lay2PortalContext.camera.projectionMatrix;
+					//PRPMath.SetObliqueNearPlane(ref lay2Proj, new Plane(lay2PortalContext.virtualCamera.worldToCamera.MultiplyVector(lay2Portal.portalPlane.normal), lay2PortalContext.virtualCamera.worldToCamera.MultiplyPoint3x4(lay2Portal.transform.position)));
+					//lay2PortalContext.virtualCamera.projectionMatrix = lay2Proj;
+					StencilMarkFill(lay2PortalContext);
+					StencilUnmark(lay1PortalContext, lay2Portal);
 					debugger.AddCamera(lay2PortalContext.virtualCamera);
 
 					Portal[] lay3Visible = basePortals; // tmp
-					RenderPortalLayer(lay1PortalContext, lay2PortalContext, lay2Portal, lay3Visible);
 
 					buffer.BeginSample("Layer 3");
 					renderContext.ExecuteCommandBuffer(buffer);
 					buffer.Clear();
 					foreach (Portal lay3Portal in lay3Visible) {
 						if (lay3Portal == lay2Portal.outputPortal) continue;
-
+						
 						// Update Context
-						PortalContext lay3PortalContext = lay2PortalContext.CopyWith(lay1Portal.TransformMatrix(lay2PortalContext.virtualCamera.worldToCamera), lay1Portal.TransformPosition(lay2PortalContext.virtualCamera.position));
+						PortalContext lay3PortalContext = lay2PortalContext.CopyWith(lay3Portal.TransformInverseMatrix(lay2PortalContext.virtualCamera.worldToCamera), lay3Portal.TransformPosition(lay2PortalContext.virtualCamera.position), lay3Portal.outputPortal);
+						//Matrix4x4 lay3Proj = lay3PortalContext.camera.projectionMatrix;
+						//PRPMath.SetObliqueNearPlane(ref lay3Proj, new Plane(lay3PortalContext.virtualCamera.worldToCamera.MultiplyVector(lay3Portal.portalPlane.normal), lay3PortalContext.virtualCamera.worldToCamera.MultiplyPoint3x4(lay3Portal.transform.position)));
+						//lay3PortalContext.virtualCamera.projectionMatrix = lay3Proj;
+						StencilMarkFill(lay3PortalContext);
+						StencilUnmark(lay2PortalContext, lay3Portal);
 						debugger.AddCamera(lay3PortalContext.virtualCamera);
 
 						RenderPortalLayer(lay2PortalContext, lay3PortalContext, lay3Portal, new Portal[0]); // tmp
+
+						StencilUnmarkFill(lay3PortalContext);
+						WriteDepthOnly(lay2PortalContext, lay3Portal);
 					}
 					buffer.EndSample("Layer 3");
 					renderContext.ExecuteCommandBuffer(buffer);
 					buffer.Clear();
+					
+					RenderPortalLayer(lay1PortalContext, lay2PortalContext, lay2Portal, lay3Visible);
+
+					StencilUnmarkFill(lay2PortalContext);
+					WriteDepthOnly(lay1PortalContext, lay2Portal);
 				}
 				buffer.EndSample("Layer 2");
 				renderContext.ExecuteCommandBuffer(buffer);
 				buffer.Clear();
+
+				RenderPortalLayer(basePortalContext, lay1PortalContext, lay1Portal, lay2Visible);
+
+				StencilUnmarkFill(lay1PortalContext);
+				WriteDepthOnly(basePortalContext, lay1Portal);
 			}
 			buffer.EndSample("Layer 1");
 			renderContext.ExecuteCommandBuffer(buffer);
 			buffer.Clear();
+
+			RenderBaseLayer(basePortalContext, basePortals);
 			
 			// Submit
 			buffer.EndSample("Render Portals");
@@ -249,55 +280,61 @@ namespace PRP {
 		}
 
 		private void RenderBaseLayer(PortalContext portalContext, Portal[] firstLayerPortals) {
-			StencilMarkFill(portalContext);
+			//StencilMarkFill(portalContext);
 
-			foreach (Portal nPortal in firstLayerPortals) {
-				StencilUnmark(portalContext, nPortal);
-			}
-
+			buffer.SetViewProjectionMatrices(portalContext.virtualCamera.worldToCamera, portalContext.virtualCamera.projectionMatrix);
+			portalContext.renderContext.ExecuteCommandBuffer(buffer);
+			buffer.Clear();
 			RenderPortalLayer(portalContext);
 
-			StencilUnmarkFill(portalContext);
+			//buffer.ClearRenderTarget(true, false, Color.clear);
+			//portalContext.renderContext.ExecuteCommandBuffer(buffer);
+			//buffer.Clear();
+
+			//foreach (Portal nPortal in firstLayerPortals) {
+			//	StencilUnmark(portalContext, nPortal);
+			//}
+
+			//StencilUnmarkFill(portalContext);
 		}
 
 		private void RenderPortalLayer(PortalContext previousPortalContext, PortalContext portalContext, Portal portal, Portal[] nextLayerPortals) {
-			StencilMark(previousPortalContext, portal);
+			//StencilMark(previousPortalContext, portal);
 
-			foreach (Portal nPortal in nextLayerPortals) {
-				StencilUnmark(portalContext, nPortal);
-			}
-
+			buffer.SetViewProjectionMatrices(portalContext.virtualCamera.worldToCamera, portalContext.virtualCamera.projectionMatrix);
+			portalContext.renderContext.ExecuteCommandBuffer(buffer);
+			buffer.Clear();
 			RenderPortalLayer(portalContext);
 
-			StencilUnmark(previousPortalContext, portal);
+			//buffer.ClearRenderTarget(true, false, Color.clear);
+			//portalContext.renderContext.ExecuteCommandBuffer(buffer);
+			//buffer.Clear();
+
+			//foreach (Portal nPortal in nextLayerPortals) {
+			//	StencilUnmark(portalContext, nPortal);
+			//}
+
+			//StencilUnmark(previousPortalContext, portal);
 		}
 
 		private void RenderPortalLayer(PortalContext portalContext) {
 
 			// Culling
-			//portalVirtualCamera.CopyFrom(portalContext.camera);
-			//portalVirtualCamera.transform.position = portalContext.virtualCameraPos;
-			//portalVirtualCamera.worldToCameraMatrix = portalContext.worldToCamera;
-			//portalVirtualCamera.enabled = false;
-			//portalVirtualCamera.depth = 10;
-			//portalVirtualCamera.targetDisplay = -1;
 			CullResults cullResults = new CullResults();
 			ScriptableCullingParameters cullingParameters = new ScriptableCullingParameters();
 			if (!CullResults.GetCullingParameters(portalContext.camera, out cullingParameters)) {
 				return;
 			}
-			//CameraProperties cameraProperties = new CameraProperties();
-			//cameraProperties.SetCameraCullingPlane(); // Could be usefull to cull everything before the output portal
-			cullingParameters.cullingMatrix = portalContext.camera.projectionMatrix * portalContext.virtualCamera.worldToCamera;
-			cullingParameters.position = portalContext.virtualCamera.position;
-			cullingParameters.cameraProperties = portalContext.virtualCamera.GetCameraProperties();
-			//object cp = cullingParameters.cameraProperties;
-			//HCamProp camProp = HCamProp.CopyStruct<HCamProp>(ref cp);
-			//camProp.worldToCamera = portalContext.worldToCamera;
-			//camProp.actualWorldToClip = portalContext.worldToCamera * portalContext.camera.projectionMatrix;
-			//object objCamProp = camProp;
-			//CameraProperties resCamProp = HCamProp.CopyStruct<CameraProperties>(ref objCamProp);
-			//cullingParameters.cameraProperties = resCamProp;
+			//cullingParameters.cullingMatrix = portalContext.camera.projectionMatrix * portalContext.virtualCamera.worldToCamera;
+			//cullingParameters.position = portalContext.virtualCamera.position;
+			//cullingParameters.cameraProperties = portalContext.virtualCamera.GetCameraProperties();
+			Plane[] cullingPlanes = portalContext.virtualCamera.GetCullingPlanes();
+			for (int i = 0; i < cullingPlanes.Length; i++) {
+				cullingParameters.SetCullingPlane(i, cullingPlanes[i]);
+			}
+			if (portalContext.output != null) {
+				cullingParameters.SetCullingPlane(4, portalContext.output.portalPlane);
+			}
 			CullResults.Cull(ref cullingParameters, portalContext.renderContext, ref cullResults);
 
 			// Setup Lights
@@ -346,6 +383,15 @@ namespace PRP {
 			buffer.SetViewMatrix(portalContext.virtualCamera.worldToCamera);
 			buffer.SetProjectionMatrix(portalContext.virtualCamera.projectionMatrix);
 			buffer.DrawRenderer(portal.renderer, stencilUnmarkerMaterial);
+			portalContext.renderContext.ExecuteCommandBuffer(buffer);
+			buffer.Clear();
+		}
+
+		private void WriteDepthOnly(PortalContext portalContext, Portal portal) {
+			buffer.SetViewport(portalContext.camera.pixelRect); // tmp
+			buffer.SetViewMatrix(portalContext.virtualCamera.worldToCamera);
+			buffer.SetProjectionMatrix(portalContext.virtualCamera.projectionMatrix);
+			buffer.DrawRenderer(portal.renderer, depthOnly);
 			portalContext.renderContext.ExecuteCommandBuffer(buffer);
 			buffer.Clear();
 		}
