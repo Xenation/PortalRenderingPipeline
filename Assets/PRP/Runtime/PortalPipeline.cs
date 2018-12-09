@@ -180,9 +180,9 @@ namespace PRP {
 			// Clear
 			CameraClearFlags clearFlags = camera.clearFlags;
 			buffer.ClearRenderTarget((clearFlags & CameraClearFlags.Depth) != 0, (clearFlags & CameraClearFlags.Color) != 0, camera.backgroundColor);
-			buffer.BeginSample("Render Portals");
-			renderContext.ExecuteCommandBuffer(buffer);
-			buffer.Clear();
+			//buffer.BeginSample("Render Portals");
+			//renderContext.ExecuteCommandBuffer(buffer);
+			//buffer.Clear();
 
 			// Portal Context
 			PortalContext basePortalContext = new PortalContext() { renderContext = renderContext, camera = camera, virtualCamera = new VirtualPortalCamera(camera) };
@@ -208,16 +208,16 @@ namespace PRP {
 			RenderBaseLayer(basePortalContext, basePortals);
 			
 			// Submit
-			buffer.EndSample("Render Portals");
-			renderContext.ExecuteCommandBuffer(buffer);
-			buffer.Clear();
+			//buffer.EndSample("Render Portals");
+			//renderContext.ExecuteCommandBuffer(buffer);
+			//buffer.Clear();
 			renderContext.Submit();
 		}
 
 		private void RenderLayer(int depth, int maxDepth, Portal viewingPortal, Portal[] visiblePortals, PortalContext context) {
-			buffer.BeginSample("Layer " + depth);
-			context.renderContext.ExecuteCommandBuffer(buffer);
-			buffer.Clear();
+			//buffer.BeginSample("Layer " + depth);
+			//context.renderContext.ExecuteCommandBuffer(buffer);
+			//buffer.Clear();
 			foreach (Portal lay2Portal in visiblePortals) {
 				if (viewingPortal != null && lay2Portal == viewingPortal.outputPortal) continue;
 
@@ -242,49 +242,25 @@ namespace PRP {
 				StencilUnmarkFill(layerContext);
 				WriteDepthOnly(context, lay2Portal);
 			}
-			buffer.EndSample("Layer " + depth);
-			context.renderContext.ExecuteCommandBuffer(buffer);
-			buffer.Clear();
+			//buffer.EndSample("Layer " + depth);
+			//context.renderContext.ExecuteCommandBuffer(buffer);
+			//buffer.Clear();
 		}
 
 		private void RenderBaseLayer(PortalContext portalContext, Portal[] firstLayerPortals) {
-			//StencilMarkFill(portalContext);
-
 			buffer.SetViewport(portalContext.camera.pixelRect); // tmp
 			buffer.SetViewProjectionMatrices(portalContext.virtualCamera.worldToCamera, portalContext.virtualCamera.projectionMatrix);
 			portalContext.renderContext.ExecuteCommandBuffer(buffer);
 			buffer.Clear();
 			RenderPortalLayer(portalContext);
-
-			//buffer.ClearRenderTarget(true, false, Color.clear);
-			//portalContext.renderContext.ExecuteCommandBuffer(buffer);
-			//buffer.Clear();
-
-			//foreach (Portal nPortal in firstLayerPortals) {
-			//	StencilUnmark(portalContext, nPortal);
-			//}
-
-			//StencilUnmarkFill(portalContext);
 		}
 
 		private void RenderPortalLayer(PortalContext previousPortalContext, PortalContext portalContext, Portal portal, Portal[] nextLayerPortals) {
-			//StencilMark(previousPortalContext, portal);
-
 			buffer.SetViewport(portalContext.camera.pixelRect); // tmp
 			buffer.SetViewProjectionMatrices(portalContext.virtualCamera.worldToCamera, portalContext.virtualCamera.projectionMatrix);
 			portalContext.renderContext.ExecuteCommandBuffer(buffer);
 			buffer.Clear();
 			RenderPortalLayer(portalContext);
-
-			//buffer.ClearRenderTarget(true, false, Color.clear);
-			//portalContext.renderContext.ExecuteCommandBuffer(buffer);
-			//buffer.Clear();
-
-			//foreach (Portal nPortal in nextLayerPortals) {
-			//	StencilUnmark(portalContext, nPortal);
-			//}
-
-			//StencilUnmark(previousPortalContext, portal);
 		}
 
 		private void RenderPortalLayer(PortalContext portalContext) {
@@ -309,7 +285,7 @@ namespace PRP {
 
 			// Setup Lights
 			ConfigureLights(cullResults);
-			buffer.BeginSample("Render Portal Layer");
+			//buffer.BeginSample("Render Portal Layer");
 			buffer.SetGlobalVectorArray(visibleLightColorsId, visibleLightColors);
 			buffer.SetGlobalVectorArray(visibleLightDirectionsOrPositionsId, visibleLightDirectionsOrPositions);
 			buffer.SetGlobalVectorArray(visibleLightAttenuationsId, visibleLightAttenuations);
@@ -334,9 +310,9 @@ namespace PRP {
 			filterSettings.renderQueueRange = RenderQueueRange.transparent;
 			portalContext.renderContext.DrawRenderers(cullResults.visibleRenderers, ref drawSettings, filterSettings);
 
-			buffer.EndSample("Render Portal Layer");
-			portalContext.renderContext.ExecuteCommandBuffer(buffer);
-			buffer.Clear();
+			//buffer.EndSample("Render Portal Layer");
+			//portalContext.renderContext.ExecuteCommandBuffer(buffer);
+			//buffer.Clear();
 		}
 
 		private void StencilMark(PortalContext portalContext, Portal portal) {

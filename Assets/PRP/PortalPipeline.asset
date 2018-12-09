@@ -15,4 +15,4 @@ MonoBehaviour:
   dynamicBatching: 0
   instancing: 1
   debugCameras: 0
-  portalDepth: 9
+  portalDepth: 5
