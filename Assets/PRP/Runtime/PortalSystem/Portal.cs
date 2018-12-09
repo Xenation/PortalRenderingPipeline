@@ -32,13 +32,6 @@ namespace PRP.PortalSystem {
 
 		}
 
-		private void OnDrawGizmos() {
-			Color tmpCol = Gizmos.color;
-			Gizmos.color = GetComponentInChildren<InstancedColor>().instancedColor;
-			Gizmos.DrawWireCube(TransformPosition(Camera.main.transform.position), Vector3.one);
-			Gizmos.color = tmpCol;
-		}
-
 		public void Synchronize() {
 			worldToPortal = portalMirroring * transform.worldToLocalMatrix;
 			worldToPortalWorld = outputPortal.transform.localToWorldMatrix * portalMirroring * transform.worldToLocalMatrix;
