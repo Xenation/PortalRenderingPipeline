@@ -1,23 +1,24 @@
-﻿Shader "Hidden/PRP/StencilUnmarker" {
+﻿Shader "Hidden/PRP/StencilIncreaseFiller" {
 	Properties {
 		
 	}
 	SubShader {
 		Pass {
 			ZWrite Off
+			ZTest Always
 			Blend Zero One
-			Stencil { // Always writes 0 at most significant bit
+			Stencil { // Always writes 1 at most significant bit
 				Ref 1
-				Comp Equal
-				Pass DecrSat
+				Comp Always
+				Pass IncrSat
 			}
-
+			
 			CGPROGRAM
 			#pragma target 3.5
 
 			#pragma vertex vert
 			#pragma fragment frag
-			
+
 			struct VertexIntput {
 				float4 vertex : POSITION;
 			};
@@ -28,7 +29,7 @@
 
 			VertexOutput vert(VertexIntput i) {
 				VertexOutput o;
-				o.clipPos = UnityObjectToClipPos(i.vertex);
+				o.clipPos = i.vertex;
 				return o;
 			}
 

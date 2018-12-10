@@ -3,7 +3,7 @@ using UnityEngine;
 using UnityEngine.Experimental.Rendering;
 
 namespace PRP.PortalSystem {
-	public class VirtualPortalCamera {
+	public struct VirtualPortalCamera {
 
 		[StructLayout(LayoutKind.Sequential)]
 		public unsafe struct CoreVirtualCameraValues {
@@ -62,6 +62,8 @@ namespace PRP.PortalSystem {
 		private Camera referenceCamera;
 		public Vector3 position;
 		public VirtualCameraProperties properties;
+
+		public Plane[] frustrumPlanes;
 		
 		public Matrix4x4 worldToCamera {
 			get {
@@ -83,14 +85,10 @@ namespace PRP.PortalSystem {
 
 		public VirtualPortalCamera(Camera camera) {
 			referenceCamera = camera;
+			position = Vector3.zero;
+			properties = new VirtualCameraProperties();
+			frustrumPlanes = new Plane[6];
 			SetReferenceCamera(camera);
-		}
-
-		public VirtualPortalCamera Copy() {
-			VirtualPortalCamera virtCam = new VirtualPortalCamera(referenceCamera);
-			virtCam.properties = properties;
-			virtCam.position = position;
-			return virtCam;
 		}
 
 		private void UpdateMatricesFromWTC() {
@@ -98,7 +96,7 @@ namespace PRP.PortalSystem {
 			properties.cameraClipToWorld = properties.implicitProjection.inverse * properties.cameraToWorld;
 			properties.cameraToWorld = properties.worldToCamera.inverse;
 			unsafe {
-				Plane[] frustrumPlanes = GeometryUtility.CalculateFrustumPlanes(properties.actualWorldToClip);
+				GeometryUtility.CalculateFrustumPlanes(properties.actualWorldToClip, frustrumPlanes);
 				for (int i = 0; i < 6; i++) {
 					properties._cameraCullPlanes[i * 4] = frustrumPlanes[i].normal.x;
 					properties._cameraCullPlanes[i * 4 + 1] = frustrumPlanes[i].normal.y;
@@ -149,7 +147,7 @@ namespace PRP.PortalSystem {
 			properties.viewDir = camera.transform.forward;
 			properties.worldToCamera = camera.worldToCameraMatrix;
 			unsafe {
-				Plane[] frustrumPlanes = GeometryUtility.CalculateFrustumPlanes(properties.actualWorldToClip);
+				GeometryUtility.CalculateFrustumPlanes(properties.actualWorldToClip, frustrumPlanes);
 				for (int i = 0; i < 6; i++) {
 					properties._cameraCullPlanes[i * 4] = frustrumPlanes[i].normal.x;
 					properties._cameraCullPlanes[i * 4 + 1] = frustrumPlanes[i].normal.y;
@@ -160,10 +158,6 @@ namespace PRP.PortalSystem {
 					properties._shadowCullPlanes[i] = properties._cameraCullPlanes[i];
 				}
 			}
-		}
-
-		public Plane[] GetCullingPlanes() {
-			return GeometryUtility.CalculateFrustumPlanes(properties.actualWorldToClip);
 		}
 
 		public CameraProperties GetCameraProperties() {

@@ -1,15 +1,16 @@
-﻿Shader "Hidden/PRP/StencilMarker" {
+﻿Shader "Hidden/PRP/StencilDecreaseFiller" {
 	Properties {
 		
 	}
 	SubShader {
 		Pass {
 			ZWrite Off
+			ZTest Always
 			Blend Zero One
 			Stencil { // Always writes 1 at most significant bit
 				Ref 1
 				Comp Always
-				Pass IncrSat
+				Pass DecrSat
 			}
 			
 			CGPROGRAM
@@ -28,7 +29,7 @@
 
 			VertexOutput vert(VertexIntput i) {
 				VertexOutput o;
-				o.clipPos = UnityObjectToClipPos(i.vertex);
+				o.clipPos = i.vertex;
 				return o;
 			}
 
