@@ -13,7 +13,6 @@ namespace PRP {
 
 		protected override IRenderPipeline InternalCreatePipeline() {
 			return new PortalPipeline(dynamicBatching, instancing, portalDepth, debugCameras);
-
 		}
 
 	}

@@ -2,6 +2,7 @@
 using UnityEngine.Rendering;
 using UnityEngine.Experimental.Rendering;
 using PRP.PortalSystem;
+using System.Collections.Generic;
 
 namespace PRP {
 	public class PortalPipeline : RenderPipeline {
@@ -10,13 +11,12 @@ namespace PRP {
 			public ScriptableRenderContext renderContext;
 			public Camera camera;
 			public VirtualPortalCamera virtualCamera;
-			public Portal output;
 
 			public PortalContext CopyWith(Matrix4x4 nWorldToCamera, Vector3 nPosition, Portal nOutput) {
 				PortalContext portalContext = new PortalContext() { renderContext = renderContext, camera = camera, virtualCamera = virtualCamera }; // TODO switch virtual camera to struct to avoid garbage
 				portalContext.virtualCamera.position = nPosition;
+				portalContext.virtualCamera.outputPortal = nOutput;
 				portalContext.virtualCamera.worldToCamera = nWorldToCamera;
-				portalContext.output = nOutput;
 				return portalContext;
 			}
 		}
@@ -34,7 +34,14 @@ namespace PRP {
 		private Material stencilDecreaseFiller;
 		private Material depthOnly;
 
-		private Mesh fullScreenQuad;
+		private Mesh fullScreenQuad = new Mesh() {
+			vertices = new Vector3[] {
+				new Vector3(-1, 1, 0),
+				new Vector3(1, 1, 0),
+				new Vector3(1, -1, 0),
+				new Vector3(-1, -1, 0)
+			}
+		};
 		private PRPDebugger debugger;
 
 		private const int MAX_VISIBLE_LIGHTS = 16;
@@ -60,13 +67,6 @@ namespace PRP {
 			stencilDecreaseFiller = new Material(Shader.Find("Hidden/PRP/StencilDecreaseFiller")) { hideFlags = HideFlags.HideAndDontSave };
 			depthOnly = new Material(Shader.Find("Hidden/PRP/DepthOnly")) { hideFlags = HideFlags.HideAndDontSave };
 
-			fullScreenQuad = new Mesh();
-			fullScreenQuad.vertices = new Vector3[] {
-				new Vector3(-1, 1, 0),
-				new Vector3(1, 1, 0),
-				new Vector3(1, -1, 0),
-				new Vector3(-1, -1, 0)
-			};
 			fullScreenQuad.SetIndices(new int[] { 0, 1, 2, 3 }, MeshTopology.Quads, 0);
 
 			this.debugCameras = debugCameras;
@@ -89,7 +89,11 @@ namespace PRP {
 			buffer.Release();
 
 			if (debugCameras) {
-				Object.DestroyImmediate(debugger.gameObject);
+				if (Application.isPlaying) {
+					Object.Destroy(debugger.gameObject);
+				} else {
+					Object.DestroyImmediate(debugger.gameObject);
+				}
 			}
 		}
 
@@ -179,33 +183,35 @@ namespace PRP {
 
 			// Clear
 			CameraClearFlags clearFlags = camera.clearFlags;
+			buffer.SetViewport(camera.pixelRect);
 			buffer.ClearRenderTarget((clearFlags & CameraClearFlags.Depth) != 0, (clearFlags & CameraClearFlags.Color) != 0, camera.backgroundColor);
 			//buffer.BeginSample("Render Portals");
 			//renderContext.ExecuteCommandBuffer(buffer);
 			//buffer.Clear();
 
 			// Portal Context
-			PortalContext basePortalContext = new PortalContext() { renderContext = renderContext, camera = camera, virtualCamera = new VirtualPortalCamera(camera) };
+			PortalContext basePortalContext = new PortalContext() { renderContext = renderContext, camera = camera, virtualCamera = new VirtualPortalCamera(camera, null) };
 			PortalViewingCamera portalCamera = camera.GetComponent<PortalViewingCamera>();
 			if (portalCamera == null) return;
 			basePortalContext.virtualCamera.worldToCamera = camera.worldToCameraMatrix;
 			basePortalContext.virtualCamera.position = camera.transform.position;
 			if (debugCameras) {
 				debugger.ClearCameras();
+				PRPDebugger.debugPositions.Clear();
 				debugger.AddCamera(basePortalContext.virtualCamera);
 			}
 			
-			Portal[] basePortals = portalCamera.viewablePortals; // tmp
-			foreach (Portal p in basePortals) {
+			List<Portal> visiblePortals = new List<Portal>();
+			PortalsManager.I.GetPortalsInFrusturm(basePortalContext.virtualCamera.frustrumPlanes, ref visiblePortals);
+			foreach (Portal p in visiblePortals) {
 				p.renderer = p.transform.GetComponentInChildren<MeshRenderer>();
-				p.Synchronize();
 			}
 
-			if (maxPortalDepth > 1) {
-				RenderLayer(0, maxPortalDepth, null, basePortals, basePortalContext);
+			if (visiblePortals.Count != 0 && maxPortalDepth > 1) {
+				RenderLayer(0, maxPortalDepth, null, visiblePortals, basePortalContext);
 			}
 
-			RenderBaseLayer(basePortalContext, basePortals);
+			RenderBaseLayer(basePortalContext, visiblePortals);
 			
 			// Submit
 			//buffer.EndSample("Render Portals");
@@ -214,10 +220,11 @@ namespace PRP {
 			renderContext.Submit();
 		}
 
-		private void RenderLayer(int depth, int maxDepth, Portal viewingPortal, Portal[] visiblePortals, PortalContext context) {
+		private void RenderLayer(int depth, int maxDepth, Portal viewingPortal, List<Portal> visiblePortals, PortalContext context) {
 			//buffer.BeginSample("Layer " + depth);
 			//context.renderContext.ExecuteCommandBuffer(buffer);
 			//buffer.Clear();
+			List<Portal> nextVisible = new List<Portal>();
 			foreach (Portal portal in visiblePortals) {
 				if (viewingPortal != null && portal == viewingPortal.outputPortal) continue;
 
@@ -229,7 +236,6 @@ namespace PRP {
 
 				//StencilIncreaseFill(layerContext);
 				//StencilDecrease(context, lay2Portal);
-				buffer.SetViewport(context.camera.pixelRect); // tmp
 				buffer.DrawMesh(fullScreenQuad, Matrix4x4.identity, stencilIncreaseFiller);
 				buffer.SetViewMatrix(context.virtualCamera.worldToCamera);
 				buffer.SetProjectionMatrix(context.virtualCamera.projectionMatrix);
@@ -240,7 +246,8 @@ namespace PRP {
 				}
 
 				//Portal[] nextVisible = visiblePortals; // tmp
-				if (depth + 1 < maxDepth) {
+				PortalsManager.I.GetPortalsInFrusturm(layerContext.virtualCamera.frustrumPlanes, ref nextVisible);
+				if (nextVisible.Count != 0 && depth + 1 < maxDepth) {
 					RenderLayer(depth + 1, maxDepth, portal, visiblePortals, layerContext);
 				} else {
 					context.renderContext.ExecuteCommandBuffer(buffer);
@@ -264,7 +271,7 @@ namespace PRP {
 			//buffer.Clear();
 		}
 
-		private void RenderBaseLayer(PortalContext portalContext, Portal[] firstLayerPortals) {
+		private void RenderBaseLayer(PortalContext portalContext, List<Portal> firstLayerPortals) {
 			buffer.SetViewport(portalContext.camera.pixelRect); // tmp
 			buffer.SetViewProjectionMatrices(portalContext.virtualCamera.worldToCamera, portalContext.virtualCamera.projectionMatrix);
 			portalContext.renderContext.ExecuteCommandBuffer(buffer);
@@ -294,8 +301,8 @@ namespace PRP {
 			for (int i = 0; i < portalContext.virtualCamera.frustrumPlanes.Length; i++) {
 				cullingParameters.SetCullingPlane(i, portalContext.virtualCamera.frustrumPlanes[i]);
 			}
-			if (portalContext.output != null) { // Set The Near Plane to the portal's plane
-				cullingParameters.SetCullingPlane(4, portalContext.output.portalPlane);
+			if (portalContext.virtualCamera.outputPortal != null) { // Set The Near Plane to the portal's plane
+				cullingParameters.SetCullingPlane(4, portalContext.virtualCamera.outputPortal.portalPlane);
 			}
 			CullResults.Cull(ref cullingParameters, portalContext.renderContext, ref cull);
 

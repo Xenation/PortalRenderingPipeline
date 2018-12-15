@@ -59,6 +59,7 @@ namespace PRP.PortalSystem {
 		}
 
 
+		public Portal outputPortal;
 		private Camera referenceCamera;
 		public Vector3 position;
 		public VirtualCameraProperties properties;
@@ -83,11 +84,12 @@ namespace PRP.PortalSystem {
 			}
 		}
 
-		public VirtualPortalCamera(Camera camera) {
+		public VirtualPortalCamera(Camera camera, Portal outPortal) {
 			referenceCamera = camera;
 			position = Vector3.zero;
 			properties = new VirtualCameraProperties();
 			frustrumPlanes = new Plane[6];
+			outputPortal = outPortal;
 			SetReferenceCamera(camera);
 		}
 
@@ -96,7 +98,11 @@ namespace PRP.PortalSystem {
 			properties.cameraClipToWorld = properties.implicitProjection.inverse * properties.cameraToWorld;
 			properties.cameraToWorld = properties.worldToCamera.inverse;
 			unsafe {
+				// 0: left  1: right  2: down  3: up  4: near  5: far
 				GeometryUtility.CalculateFrustumPlanes(properties.actualWorldToClip, frustrumPlanes);
+				if (outputPortal != null) {
+					PRPMath.NarrowFrustumPlanesCam(position, ref frustrumPlanes, outputPortal.bounds, ref properties.worldToCamera, ref properties.cameraToWorld);
+				}
 				for (int i = 0; i < 6; i++) {
 					properties._cameraCullPlanes[i * 4] = frustrumPlanes[i].normal.x;
 					properties._cameraCullPlanes[i * 4 + 1] = frustrumPlanes[i].normal.y;

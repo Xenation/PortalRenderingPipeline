@@ -22,13 +22,19 @@ namespace PRP.PortalSystem {
 		private Matrix4x4 warpMatrix;
 		public Plane portalPlane;
 
+		public Bounds bounds {
+			get {
+				return collider.bounds;
+			}
+		}
+
 		private void OnEnable() {
 			renderer = transform.GetComponentInChildren<Renderer>();
 			collider = GetComponent<Collider>();
 			PortalsManager.I.RegisterPortal(this);
 		}
 
-		private void OnPreRender() {
+		private void Update() {
 			Synchronize();
 		}
 

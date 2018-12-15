@@ -13,6 +13,7 @@ namespace PRPDemo {
 
 		private Vector3 velocity;
 		private bool onGround = false;
+		private bool mouseLocked = false;
 
 		private void Awake() {
 			rb = GetComponent<Rigidbody>();
@@ -23,17 +24,21 @@ namespace PRPDemo {
 			if (Input.GetMouseButtonDown(0)) {
 				Cursor.lockState = CursorLockMode.Locked;
 				Cursor.visible = false;
+				mouseLocked = true;
 			}
 
 			if (Input.GetKeyDown(KeyCode.Escape)) {
 				Cursor.lockState = CursorLockMode.None;
 				Cursor.visible = true;
+				mouseLocked = false;
 			}
 
-			float mouseX = Input.GetAxisRaw("Mouse X");
-			float mouseY = Input.GetAxisRaw("Mouse Y");
-			transform.rotation *= Quaternion.Euler(0f, mouseX * lookSpeed, 0f);
-			cam.rotation *= Quaternion.Euler(-mouseY * lookSpeed, 0f, 0f);
+			if (mouseLocked) {
+				float mouseX = Input.GetAxisRaw("Mouse X");
+				float mouseY = Input.GetAxisRaw("Mouse Y");
+				transform.rotation *= Quaternion.Euler(0f, mouseX * lookSpeed, 0f);
+				cam.rotation *= Quaternion.Euler(-mouseY * lookSpeed, 0f, 0f);
+			}
 
 			float strafe = Input.GetAxisRaw("Horizontal");
 			float walk = Input.GetAxisRaw("Vertical");
@@ -57,6 +62,7 @@ namespace PRPDemo {
 		private void FixedUpdate() {
 			velocity.y = rb.velocity.y;
 			if (velocity.y > 20f) velocity.y = 20f;
+			if (velocity.y < -20f) velocity.y = -20f;
 			rb.velocity = velocity;
 		}
 
