@@ -39,25 +39,19 @@ namespace PRP {
 
 
 		public static void NarrowFrustumPlanes(Vector3 frustumOrigin, ref Plane[] planes, Bounds narrowingBounds, ref Matrix4x4 worldToClip, ref Matrix4x4 clipToWorld) {
-			Vector3 minInClip = worldToClip.MultiplyPoint3x4(narrowingBounds.min);
-			Vector3 maxInClip = worldToClip.MultiplyPoint3x4(narrowingBounds.max);
-			Vector3 minClip, maxClip;
-			if (minInClip.x < maxInClip.x) {
-				minClip.x = minInClip.x;
-				maxClip.x = maxInClip.x;
-			} else {
-				minClip.x = maxInClip.x;
-				maxClip.x = minInClip.x;
+			Vector3 minClip = worldToClip.MultiplyPoint3x4(narrowingBounds.min);
+			Vector3 maxClip = worldToClip.MultiplyPoint3x4(narrowingBounds.max);
+			//Vector3 minCamera, maxCamera;
+			if (minClip.x > maxClip.x) {
+				float tmpX = minClip.x;
+				minClip.x = maxClip.x;
+				maxClip.x = tmpX;
 			}
-			if (minInClip.y < maxInClip.y) {
-				minClip.y = minInClip.y;
-				maxClip.y = maxInClip.y;
-			} else {
-				minClip.y = maxInClip.y;
-				maxClip.y = minInClip.y;
+			if (minClip.y > maxClip.y) {
+				float tmpY = minClip.y;
+				minClip.y = maxClip.y;
+				maxClip.y = tmpY;
 			}
-			minClip.z = minInClip.z;
-			maxClip.z = maxInClip.z;
 			Vector3 worldBotLeft = clipToWorld.MultiplyPoint3x4(minClip);
 			Vector3 worldTopLeft = clipToWorld.MultiplyPoint3x4(new Vector3(minClip.x, maxClip.y, minClip.z));
 			Vector3 worldTopRight = clipToWorld.MultiplyPoint3x4(maxClip);
@@ -87,10 +81,51 @@ namespace PRP {
 				minCamera.y = maxCamera.y;
 				maxCamera.y = tmpY;
 			}
+			if (minCamera.z < maxCamera.z) {
+				minCamera.z = maxCamera.z;
+			} else {
+				maxCamera.z = minCamera.z;
+			}
 			Vector3 worldBotLeft = cameraToWorld.MultiplyPoint3x4(minCamera);
 			Vector3 worldTopLeft = cameraToWorld.MultiplyPoint3x4(new Vector3(minCamera.x, maxCamera.y, minCamera.z));
 			Vector3 worldTopRight = cameraToWorld.MultiplyPoint3x4(maxCamera);
 			Vector3 worldBotRight = cameraToWorld.MultiplyPoint3x4(new Vector3(maxCamera.x, minCamera.y, maxCamera.z));
+			PRPDebugger.debugPositions.Add(worldBotLeft);
+			PRPDebugger.debugPositions.Add(worldTopLeft);
+			PRPDebugger.debugPositions.Add(worldBotRight);
+			PRPDebugger.debugPositions.Add(worldTopRight);
+			// 0: left  1: right  2: down  3: up  4: near  5: far
+			planes[0] = new Plane(frustumOrigin, worldTopLeft, worldBotLeft);
+			planes[1] = new Plane(frustumOrigin, worldBotRight, worldTopRight);
+			planes[2] = new Plane(frustumOrigin, worldBotLeft, worldBotRight);
+			planes[3] = new Plane(frustumOrigin, worldTopRight, worldTopLeft);
+		}
+
+		public static void CameraSpaceMinMax(Bounds bounds, ref Matrix4x4 worldToCamera, ref Vector3 min, ref Vector3 max) {
+			min = worldToCamera.MultiplyPoint3x4(bounds.min);
+			max = worldToCamera.MultiplyPoint3x4(bounds.max);
+			if (min.x > max.x) {
+				float tmpX = min.x;
+				min.x = max.x;
+				max.x = tmpX;
+			}
+			if (min.y > max.y) {
+				float tmpY = min.y;
+				min.y = max.y;
+				max.y = tmpY;
+			}
+			if (min.z < max.z) {
+				min.z = max.z;
+			} else {
+				max.z = min.z;
+			}
+		}
+
+		public static void FrustumPlanesFromCameraSpaceMinMax(ref Matrix4x4 cameraToWorld, Vector3 frustumOrigin, ref Plane[] planes, Vector3 min, Vector3 max) {
+			Vector3 worldBotLeft = cameraToWorld.MultiplyPoint3x4(min);
+			Vector3 worldTopLeft = cameraToWorld.MultiplyPoint3x4(new Vector3(min.x, max.y, min.z));
+			Vector3 worldTopRight = cameraToWorld.MultiplyPoint3x4(max);
+			Vector3 worldBotRight = cameraToWorld.MultiplyPoint3x4(new Vector3(max.x, min.y, min.z));
 			PRPDebugger.debugPositions.Add(worldBotLeft);
 			PRPDebugger.debugPositions.Add(worldTopLeft);
 			PRPDebugger.debugPositions.Add(worldBotRight);

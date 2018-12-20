@@ -65,6 +65,9 @@ namespace PRP.PortalSystem {
 		public VirtualCameraProperties properties;
 
 		public Plane[] frustrumPlanes;
+		public Vector3 outputPortalMin;
+		public Vector3 outputPortalMax;
+		public bool narrowedFrustum;
 		
 		public Matrix4x4 worldToCamera {
 			get {
@@ -90,6 +93,9 @@ namespace PRP.PortalSystem {
 			properties = new VirtualCameraProperties();
 			frustrumPlanes = new Plane[6];
 			outputPortal = outPortal;
+			narrowedFrustum = false;
+			outputPortalMin = Vector3.zero;
+			outputPortalMax = Vector3.zero;
 			SetReferenceCamera(camera);
 		}
 
@@ -100,9 +106,14 @@ namespace PRP.PortalSystem {
 			unsafe {
 				// 0: left  1: right  2: down  3: up  4: near  5: far
 				GeometryUtility.CalculateFrustumPlanes(properties.actualWorldToClip, frustrumPlanes);
-				if (outputPortal != null) {
-					PRPMath.NarrowFrustumPlanesCam(position, ref frustrumPlanes, outputPortal.bounds, ref properties.worldToCamera, ref properties.cameraToWorld);
+				//PRPDebugger.AddDebugPlanes(frustrumPlanes, new Color(.5f, 0f, .5f, .2f));
+				if (!narrowedFrustum && outputPortal != null) {
+					PRPMath.CameraSpaceMinMax(outputPortal.bounds, ref properties.worldToCamera, ref outputPortalMin, ref outputPortalMax);
+					narrowedFrustum = true;
+					//PRPMath.NarrowFrustumPlanesCam(position, ref frustrumPlanes, outputPortal.bounds, ref properties.worldToCamera, ref properties.cameraToWorld);
 				}
+				PRPMath.FrustumPlanesFromCameraSpaceMinMax(ref properties.cameraToWorld, position, ref frustrumPlanes, outputPortalMin, outputPortalMax);
+				PRPDebugger.AddDebugPlanes(frustrumPlanes, new Color(.5f, .5f, 0f, .2f));
 				for (int i = 0; i < 6; i++) {
 					properties._cameraCullPlanes[i * 4] = frustrumPlanes[i].normal.x;
 					properties._cameraCullPlanes[i * 4 + 1] = frustrumPlanes[i].normal.y;

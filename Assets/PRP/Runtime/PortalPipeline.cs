@@ -197,12 +197,13 @@ namespace PRP {
 			basePortalContext.virtualCamera.position = camera.transform.position;
 			if (debugCameras) {
 				debugger.ClearCameras();
+				PRPDebugger.ClearDebugPlanes();
 				PRPDebugger.debugPositions.Clear();
 				debugger.AddCamera(basePortalContext.virtualCamera);
 			}
 			
 			List<Portal> visiblePortals = new List<Portal>();
-			PortalsManager.I.GetPortalsInFrusturm(basePortalContext.virtualCamera.frustrumPlanes, ref visiblePortals);
+			PortalsManager.I.GetPortalsInFrustum(basePortalContext.virtualCamera.frustrumPlanes, ref visiblePortals, null);
 			foreach (Portal p in visiblePortals) {
 				p.renderer = p.transform.GetComponentInChildren<MeshRenderer>();
 			}
@@ -246,7 +247,7 @@ namespace PRP {
 				}
 
 				//Portal[] nextVisible = visiblePortals; // tmp
-				PortalsManager.I.GetPortalsInFrusturm(layerContext.virtualCamera.frustrumPlanes, ref nextVisible);
+				PortalsManager.I.GetPortalsInFrustum(layerContext.virtualCamera.frustrumPlanes, ref nextVisible, portal.outputPortal);
 				if (nextVisible.Count != 0 && depth + 1 < maxDepth) {
 					RenderLayer(depth + 1, maxDepth, portal, visiblePortals, layerContext);
 				} else {

@@ -48,10 +48,11 @@ namespace PRP.PortalSystem {
 			return false;
 		}
 
-		public void GetPortalsInFrusturm(Plane[] frustrumPlanes, ref List<Portal> visiblePortals) {
+		public void GetPortalsInFrustum(Plane[] frustumPlanes, ref List<Portal> visiblePortals, Portal excluded) {
 			visiblePortals.Clear();
 			foreach (Portal portal in portals) {
-				if (GeometryUtility.TestPlanesAABB(frustrumPlanes, portal.bounds)) {
+				if (portal == excluded) continue;
+				if (GeometryUtility.TestPlanesAABB(frustumPlanes, portal.bounds)) {
 					visiblePortals.Add(portal);
 				}
 			}
