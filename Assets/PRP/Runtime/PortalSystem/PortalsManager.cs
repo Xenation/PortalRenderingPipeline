@@ -48,6 +48,18 @@ namespace PRP.PortalSystem {
 			return false;
 		}
 
+		public bool CheckTouchingPortal(Bounds worldBounds, out Portal transportPortal) {
+			Debug.DrawLine(worldBounds.min, worldBounds.max);
+			foreach (Portal portal in portals) {
+				if (portal.collider.bounds.Intersects(worldBounds)) { // TODO Not Ideal
+					transportPortal = portal;
+					return true;
+				}
+			}
+			transportPortal = null;
+			return false;
+		}
+
 		public void GetPortalsInFrustum(Plane[] frustumPlanes, ref List<Portal> visiblePortals, Portal excluded) {
 			visiblePortals.Clear();
 			foreach (Portal portal in portals) {

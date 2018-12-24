@@ -136,5 +136,15 @@ namespace PRP {
 			planes[2] = new Plane(frustumOrigin, worldBotLeft, worldBotRight);
 			planes[3] = new Plane(frustumOrigin, worldTopRight, worldTopLeft);
 		}
+
+		public static bool PlaneBoundsIntersects(Plane plane, Bounds bounds) {
+			Vector3 center = bounds.center;
+			Vector3 extents = bounds.extents;
+
+			float projectedExtents = extents.x * Mathf.Abs(plane.normal.x) + extents.y * Mathf.Abs(plane.normal.y) + extents.z * Mathf.Abs(plane.normal.z);
+
+			return Mathf.Abs(plane.GetDistanceToPoint(center)) <= projectedExtents;
+		}
+
 	}
 }

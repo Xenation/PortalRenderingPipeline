@@ -303,7 +303,7 @@ namespace PRP {
 				cullingParameters.SetCullingPlane(i, portalContext.virtualCamera.frustrumPlanes[i]);
 			}
 			if (portalContext.virtualCamera.outputPortal != null) { // Set The Near Plane to the portal's plane
-				cullingParameters.SetCullingPlane(4, portalContext.virtualCamera.outputPortal.portalPlane);
+				cullingParameters.SetCullingPlane(4, portalContext.virtualCamera.outputPortal.plane);
 			}
 			CullResults.Cull(ref cullingParameters, portalContext.renderContext, ref cull);
 

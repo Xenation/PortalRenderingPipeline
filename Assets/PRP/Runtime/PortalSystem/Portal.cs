@@ -20,7 +20,7 @@ namespace PRP.PortalSystem {
 		private Matrix4x4 worldToPortalWorld;
 		private Matrix4x4 portalWorldToWorld;
 		private Matrix4x4 warpMatrix;
-		public Plane portalPlane;
+		public Plane plane;
 
 		public Bounds bounds {
 			get {
@@ -47,7 +47,7 @@ namespace PRP.PortalSystem {
 			worldToPortalWorld = outputPortal.transform.localToWorldMatrix * portalMirroring * transform.worldToLocalMatrix;
 			portalWorldToWorld = transform.localToWorldMatrix * portalMirroringInverse * outputPortal.transform.worldToLocalMatrix;
 			warpMatrix = outputPortal.transform.localToWorldMatrix * transform.worldToLocalMatrix;
-			portalPlane = new Plane(-transform.forward, transform.position);
+			plane = new Plane(-transform.forward, transform.position);
 		}
 
 		public Matrix4x4 TransformInverseMatrix(Matrix4x4 mat) {
