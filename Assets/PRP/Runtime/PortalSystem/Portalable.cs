@@ -21,6 +21,7 @@ namespace PRP.PortalSystem {
 			public void CreatePortaledClone() {
 				GameObject go = Instantiate(originalFilter.gameObject, originalFilter.transform);
 				go.name = "PortalableMeshClone";
+				go.hideFlags = HideFlags.HideAndDontSave;
 				clonedFilter = go.GetComponent<MeshFilter>();
 				clonedMesh = new SlicableMesh(clonedFilter.mesh);
 				Portalable p = go.GetComponent<Portalable>();

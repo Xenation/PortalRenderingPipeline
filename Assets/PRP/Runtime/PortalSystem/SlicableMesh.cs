@@ -159,7 +159,7 @@ namespace PRP.PortalSystem {
 
 			mesh.Clear();
 			mesh.SetVertices(currentVertices);
-			mesh.SetNormals(originalNormals);
+			mesh.SetNormals(currentNormals);
 			mesh.SetTriangles(currentIndices, 0);
 		}
 
