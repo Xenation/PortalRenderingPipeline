@@ -105,17 +105,21 @@ namespace PRP.PortalSystem {
 		}
 
 		private void UpdateMatricesFromWTC() {
-			properties.cameraWorldToClip = properties.actualWorldToClip = properties.implicitProjection * properties.worldToCamera;
-			properties.cameraClipToWorld = properties.implicitProjection.inverse * properties.cameraToWorld;
 			properties.cameraToWorld = properties.worldToCamera.inverse;
+			properties.cameraWorldToClip = properties.actualWorldToClip = properties.implicitProjection * properties.worldToCamera;
+			properties.cameraClipToWorld = properties.cameraToWorld * properties.implicitProjection.inverse;
 			unsafe {
 				// 0: left  1: right  2: down  3: up  4: near  5: far
-				GeometryUtility.CalculateFrustumPlanes(properties.actualWorldToClip, frustrumPlanes);
-				if (!narrowedFrustum && outputPortal != null) {
-					PRPMath.OrganizeCorners(ref properties.worldToCamera, outputPortal.corners, outputPortal.middle, ref outputPortalBotLeft, ref outputPortalTopLeft, ref outputPortalTopRight, ref outputPortalBotRight);
-					narrowedFrustum = true;
+				GeometryUtility.CalculateFrustumPlanes(properties.cameraWorldToClip, frustrumPlanes);
+				if (outputPortal != null) {
+					if (!narrowedFrustum) {
+						PRPMath.OrganizeCorners(ref properties.worldToCamera, ref properties.cameraWorldToClip, outputPortal.corners, outputPortal.middle, ref outputPortalBotLeft, ref outputPortalTopLeft, ref outputPortalTopRight, ref outputPortalBotRight);
+						narrowedFrustum = true;
+						PRPDebugger.debugPositions.Add(position + Vector3.up * 2f);
+					}
+					PRPMath.FrustumPlanesFromOrganizedCorners(ref properties.cameraToWorld, position, ref frustrumPlanes, outputPortalBotLeft, outputPortalTopLeft, outputPortalTopRight, outputPortalBotRight);
+					PRPDebugger.debugPositions.Add(position + Vector3.up * 1f);
 				}
-				PRPMath.FrustumPlanesFromOrganizedCorners(ref properties.cameraToWorld, position, ref frustrumPlanes, outputPortalBotLeft, outputPortalTopLeft, outputPortalTopRight, outputPortalBotRight);
 				PRPDebugger.AddDebugCullingFrustum(frustrumPlanes, new Color(.5f, .5f, 0f, 1f));
 				for (int i = 0; i < 6; i++) {
 					properties._cameraCullPlanes[i * 4] = frustrumPlanes[i].normal.x;

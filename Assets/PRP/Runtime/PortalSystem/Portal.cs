@@ -49,12 +49,8 @@ namespace PRP.PortalSystem {
 		private void ComputeCorners() {
 			Mesh mesh = renderer.GetComponent<MeshFilter>().sharedMesh;
 			Matrix4x4 rendLocalToWorld = renderer.transform.localToWorldMatrix;
-			// Assumes portal mesh is a quad
+			// TODO Assumes portal mesh is a quad
 			Vector3[] vertices = mesh.vertices;
-			Debug.Log("Verts");
-			foreach (Vector3 vert in vertices) {
-				Debug.Log(vert);
-			}
 			corners[0] = rendLocalToWorld.MultiplyPoint3x4(vertices[0]);
 			corners[1] = rendLocalToWorld.MultiplyPoint3x4(vertices[1]);
 			corners[2] = rendLocalToWorld.MultiplyPoint3x4(vertices[2]);

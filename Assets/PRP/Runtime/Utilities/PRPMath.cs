@@ -1,4 +1,5 @@
 ﻿using PRP.PortalSystem;
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace PRP {
@@ -38,30 +39,64 @@ namespace PRP {
 		}
 
 		
-		public static void OrganizeCorners(ref Matrix4x4 worldToCamera, Vector3[] corners, Vector3 middle, ref Vector3 botLeft, ref Vector3 topLeft, ref Vector3 topRight, ref Vector3 botRight) {
+		public static void OrganizeCorners(ref Matrix4x4 worldToCamera, ref Matrix4x4 worldToClip, Vector3[] corners, Vector3 middle, ref Vector3 botLeft, ref Vector3 topLeft, ref Vector3 topRight, ref Vector3 botRight) {
 			Vector3[] camSpaceCorners = {
 				worldToCamera.MultiplyPoint3x4(corners[0]),
 				worldToCamera.MultiplyPoint3x4(corners[1]),
 				worldToCamera.MultiplyPoint3x4(corners[2]),
 				worldToCamera.MultiplyPoint3x4(corners[3]),
 			};
-			Vector3 camSpaceMiddle = worldToCamera.MultiplyPoint3x4(middle);
+			Vector4[] clipSpaceCorners = {
+				worldToClip * corners[0],
+				worldToClip * corners[1],
+				worldToClip * corners[2],
+				worldToClip * corners[3],
+			};
+			Vector4 clipSpaceMiddle = worldToClip * middle;
+			PRPDebugger.debugPositions.Add(middle);
 
+			// We want top{left, right} bot{left, right}
+			// Separate Top/Bottom first
+			int tmp;
+			List<int> topIndices = new List<int>(2);
+			List<int> botIndices = new List<int>(2);
+			List<int> onLine = new List<int>(2);
+			float yMiddle = clipSpaceMiddle.y;
 			for (int i = 0; i < 4; i++) {
-				if (camSpaceCorners[i].x < camSpaceMiddle.x) { // Left
-					if (camSpaceCorners[i].y < camSpaceMiddle.y) { // Bot
-						botLeft = camSpaceCorners[i];
-					} else { // Top
-						topLeft = camSpaceCorners[i];
-					}
-				} else { // Right
-					if (camSpaceCorners[i].y < camSpaceMiddle.y) { // Bot
-						botRight = camSpaceCorners[i];
-					} else { // Top
-						topRight = camSpaceCorners[i];
-					}
+				if (clipSpaceCorners[i].y > yMiddle) {
+					topIndices.Add(i);
+				} else if (clipSpaceCorners[i].y < yMiddle) {
+					botIndices.Add(i);
+				} else { // When on separation line
+					onLine.Add(i);
 				}
 			}
+			foreach (int i in onLine) { // Fix not ideal, may produce incorrect plane normals
+				if (topIndices.Count < 2) {
+					topIndices.Add(i);
+				} else {
+					botIndices.Add(i);
+				}
+			}
+
+			// Separate Left/Right
+			float xMiddleTop = (clipSpaceCorners[topIndices[0]].x + clipSpaceCorners[topIndices[1]].x) / 2f;
+			if (clipSpaceCorners[topIndices[0]].x > xMiddleTop) {
+				tmp = topIndices[0];
+				topIndices[0] = topIndices[1];
+				topIndices[1] = tmp;
+			}
+			float xMiddleBot = (clipSpaceCorners[botIndices[0]].x + clipSpaceCorners[botIndices[1]].x) / 2f;
+			if (clipSpaceCorners[botIndices[0]].x > xMiddleBot) {
+				tmp = botIndices[0];
+				botIndices[0] = botIndices[1];
+				botIndices[1] = tmp;
+			}
+
+			topLeft = camSpaceCorners[topIndices[0]];
+			topRight = camSpaceCorners[topIndices[1]];
+			botLeft = camSpaceCorners[botIndices[0]];
+			botRight = camSpaceCorners[botIndices[1]];
 		}
 
 		public static void FrustumPlanesFromOrganizedCorners(ref Matrix4x4 cameraToWorld, Vector3 frustumOrigin, ref Plane[] planes, Vector3 botLeft, Vector3 topLeft, Vector3 topRight, Vector3 botRight) {
