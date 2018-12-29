@@ -19,11 +19,11 @@ namespace PRP.PortalSystem {
 			}
 
 			public void CreatePortaledClone() {
-				GameObject go = Instantiate(originalFilter.gameObject, originalFilter.transform);
-				go.name = "PortalableMeshClone";
+				GameObject go = PRPUtils.InstantiateDummy(originalFilter.gameObject, originalFilter.transform, typeof(InstancedColor));
 				go.hideFlags = HideFlags.HideAndDontSave;
 				clonedFilter = go.GetComponent<MeshFilter>();
 				clonedMesh = new SlicableMesh(clonedFilter.mesh);
+
 				Portalable p = go.GetComponent<Portalable>();
 				if (p != null) {
 					Destroy(p);
@@ -40,10 +40,16 @@ namespace PRP.PortalSystem {
 			public void Update() {
 				clonedFilter.gameObject.transform.position = transporter.TransformPosition(originalFilter.transform.position);
 				clonedFilter.gameObject.transform.rotation = Quaternion.LookRotation(transporter.TransformDirection(originalFilter.transform.forward));
-				Matrix4x4 toClonedLocal = clonedFilter.transform.worldToLocalMatrix;
-				Matrix4x4 toOriginalLocal = originalFilter.transform.worldToLocalMatrix;
-				Plane planeOut = new Plane(toClonedLocal.MultiplyVector(transporter.outputPortal.plane.normal), toClonedLocal.MultiplyPoint3x4(transporter.outputPortal.plane.ClosestPointOnPlane(Vector3.zero)));
-				Plane planeIn = new Plane(toOriginalLocal.MultiplyVector(transporter.plane.normal), toOriginalLocal.MultiplyPoint3x4(transporter.plane.ClosestPointOnPlane(Vector3.zero)));
+				Matrix4x4 toClonedWorld = clonedFilter.transform.localToWorldMatrix;
+				Matrix4x4 toOriginalWorld = originalFilter.transform.localToWorldMatrix;
+				Vector4 planeOutEq = new Vector4(transporter.outputPortal.plane.normal.x, transporter.outputPortal.plane.normal.y, transporter.outputPortal.plane.normal.z, transporter.outputPortal.plane.distance);
+				planeOutEq = toClonedWorld.transpose * planeOutEq;
+				Plane planeOut = new Plane(planeOutEq, planeOutEq.w);
+				Vector4 planeInEq = new Vector4(transporter.plane.normal.x, transporter.plane.normal.y, transporter.plane.normal.z, transporter.plane.distance);
+				planeInEq = toOriginalWorld.transpose * planeInEq;
+				Plane planeIn = new Plane(planeInEq, planeInEq.w);
+				//Plane planeOut = new Plane(toClonedLocal.MultiplyVector(transporter.outputPortal.plane.normal), toClonedLocal.MultiplyPoint3x4(transporter.outputPortal.plane.ClosestPointOnPlane(Vector3.zero)));
+				//Plane planeIn = new Plane(toOriginalLocal.MultiplyVector(transporter.plane.normal), toOriginalLocal.MultiplyPoint3x4(transporter.plane.ClosestPointOnPlane(Vector3.zero)));
 				clonedMesh.Slice(planeOut);
 				originalMesh.Slice(planeIn);
 			}
