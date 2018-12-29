@@ -57,11 +57,12 @@ namespace PRP.PortalSystem {
 		}
 
 		private Vector3 previousPosition;
-
 		private List<PortalableMeshFilter> portalableFilters = new List<PortalableMeshFilter>();
+		private Rigidbody rb;
 
 		private void Awake() {
 			previousPosition = transform.position;
+			rb = GetComponent<Rigidbody>();
 			List<MeshRenderer> meshRenderer = new List<MeshRenderer>();
 			transform.GetComponentsInChildren(meshRenderer);
 			InitializeMeshes(meshRenderer);
@@ -73,6 +74,9 @@ namespace PRP.PortalSystem {
 			if (PortalsManager.I.CheckThroughPortal(previousPosition, currentPosition, out transporter)) {
 				transform.position = currentPosition = transporter.TransformPosition(currentPosition);
 				transform.rotation = Quaternion.LookRotation(transporter.TransformDirection(transform.forward));
+				if (rb != null) {
+					rb.velocity = transporter.TransformDirection(rb.velocity);
+				}
 			}
 			previousPosition = currentPosition;
 
@@ -90,11 +94,13 @@ namespace PRP.PortalSystem {
 				if (PortalsManager.I.CheckTouchingPortal(portalableFilter.originalRenderer.bounds, out portalableFilter.transporter)) {
 					if (portalableFilter.clonedFilter == null) { // Starts Touching
 						portalableFilter.CreatePortaledClone();
+						rb.detectCollisions = false;
 					}
 					portalableFilter.Update();
 				} else {
 					if (portalableFilter.clonedFilter != null) { // Ends Touching
 						portalableFilter.DestroyPortaledClone();
+						rb.detectCollisions = true;
 					}
 				}
 			}

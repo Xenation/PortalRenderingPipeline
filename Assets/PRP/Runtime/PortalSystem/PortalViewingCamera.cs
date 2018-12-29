@@ -13,11 +13,5 @@ namespace PRP.PortalSystem {
 			camera.depthTextureMode = DepthTextureMode.Depth;
 		}
 
-		private void Update() { // tmp
-			foreach (Portal portal in viewablePortals) {
-				portal.renderer = portal.transform.GetComponentInChildren<MeshRenderer>();
-			}
-		}
-
 	}
 }
