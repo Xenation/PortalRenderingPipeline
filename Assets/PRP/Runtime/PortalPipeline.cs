@@ -198,6 +198,7 @@ namespace PRP {
 			if (debugCameras) {
 				debugger.ClearCameras();
 				PRPDebugger.ClearDebugPlanes();
+				PRPDebugger.ClearDebugCullingFrustums();
 				PRPDebugger.debugPositions.Clear();
 				debugger.AddCamera(basePortalContext.virtualCamera);
 			}

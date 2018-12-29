@@ -65,8 +65,11 @@ namespace PRP.PortalSystem {
 		public VirtualCameraProperties properties;
 
 		public Plane[] frustrumPlanes;
-		public Vector3 outputPortalMin;
-		public Vector3 outputPortalMax;
+		// Corners in camera space
+		public Vector3 outputPortalTopLeft;
+		public Vector3 outputPortalBotLeft;
+		public Vector3 outputPortalTopRight;
+		public Vector3 outputPortalBotRight;
 		public bool narrowedFrustum;
 		
 		public Matrix4x4 worldToCamera {
@@ -94,8 +97,10 @@ namespace PRP.PortalSystem {
 			frustrumPlanes = new Plane[6];
 			outputPortal = outPortal;
 			narrowedFrustum = false;
-			outputPortalMin = Vector3.zero;
-			outputPortalMax = Vector3.zero;
+			outputPortalTopLeft = Vector3.zero;
+			outputPortalBotLeft = Vector3.zero;
+			outputPortalTopRight = Vector3.zero;
+			outputPortalBotRight = Vector3.zero;
 			SetReferenceCamera(camera);
 		}
 
@@ -106,14 +111,12 @@ namespace PRP.PortalSystem {
 			unsafe {
 				// 0: left  1: right  2: down  3: up  4: near  5: far
 				GeometryUtility.CalculateFrustumPlanes(properties.actualWorldToClip, frustrumPlanes);
-				//PRPDebugger.AddDebugPlanes(frustrumPlanes, new Color(.5f, 0f, .5f, .2f));
 				if (!narrowedFrustum && outputPortal != null) {
-					PRPMath.CameraSpaceMinMax(outputPortal.bounds, ref properties.worldToCamera, ref outputPortalMin, ref outputPortalMax);
+					PRPMath.OrganizeCorners(ref properties.worldToCamera, outputPortal.corners, outputPortal.middle, ref outputPortalBotLeft, ref outputPortalTopLeft, ref outputPortalTopRight, ref outputPortalBotRight);
 					narrowedFrustum = true;
-					//PRPMath.NarrowFrustumPlanesCam(position, ref frustrumPlanes, outputPortal.bounds, ref properties.worldToCamera, ref properties.cameraToWorld);
 				}
-				PRPMath.FrustumPlanesFromCameraSpaceMinMax(ref properties.cameraToWorld, position, ref frustrumPlanes, outputPortalMin, outputPortalMax);
-				PRPDebugger.AddDebugPlanes(frustrumPlanes, new Color(.5f, .5f, 0f, .2f));
+				PRPMath.FrustumPlanesFromOrganizedCorners(ref properties.cameraToWorld, position, ref frustrumPlanes, outputPortalBotLeft, outputPortalTopLeft, outputPortalTopRight, outputPortalBotRight);
+				PRPDebugger.AddDebugCullingFrustum(frustrumPlanes, new Color(.5f, .5f, 0f, 1f));
 				for (int i = 0; i < 6; i++) {
 					properties._cameraCullPlanes[i * 4] = frustrumPlanes[i].normal.x;
 					properties._cameraCullPlanes[i * 4 + 1] = frustrumPlanes[i].normal.y;

@@ -27,10 +27,14 @@ namespace PRP.PortalSystem {
 				return collider.bounds;
 			}
 		}
+		
+		[System.NonSerialized] public Vector3[] corners = new Vector3[4];
+		[System.NonSerialized] public Vector3 middle;
 
 		private void OnEnable() {
 			renderer = transform.GetComponentInChildren<Renderer>();
 			collider = GetComponent<Collider>();
+			ComputeCorners();
 			PortalsManager.I.RegisterPortal(this);
 		}
 
@@ -40,6 +44,22 @@ namespace PRP.PortalSystem {
 
 		private void OnDisable() {
 			PortalsManager.I.UnregisterPortal(this);
+		}
+
+		private void ComputeCorners() {
+			Mesh mesh = renderer.GetComponent<MeshFilter>().sharedMesh;
+			Matrix4x4 rendLocalToWorld = renderer.transform.localToWorldMatrix;
+			// Assumes portal mesh is a quad
+			Vector3[] vertices = mesh.vertices;
+			Debug.Log("Verts");
+			foreach (Vector3 vert in vertices) {
+				Debug.Log(vert);
+			}
+			corners[0] = rendLocalToWorld.MultiplyPoint3x4(vertices[0]);
+			corners[1] = rendLocalToWorld.MultiplyPoint3x4(vertices[1]);
+			corners[2] = rendLocalToWorld.MultiplyPoint3x4(vertices[2]);
+			corners[3] = rendLocalToWorld.MultiplyPoint3x4(vertices[3]);
+			middle = renderer.transform.position;
 		}
 
 		public void Synchronize() {

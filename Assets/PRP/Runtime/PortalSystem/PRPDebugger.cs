@@ -3,6 +3,29 @@ using UnityEngine;
 
 namespace PRP.PortalSystem {
 	public class PRPDebugger : MonoBehaviour {
+		
+		public struct FrustumCorners {
+			public Vector3 topNearLeft;
+			public Vector3 topFarLeft;
+			public Vector3 topFarRight;
+			public Vector3 topNearRight;
+			public Vector3 botNearLeft;
+			public Vector3 botFarLeft;
+			public Vector3 botFarRight;
+			public Vector3 botNearRight;
+
+			// 0: left  1: right  2: down  3: up  4: near  5: far
+			public FrustumCorners(Plane[] planes) {
+				PRPMath.PlanesIntersect(planes[3], planes[4], planes[0], out topNearLeft);
+				PRPMath.PlanesIntersect(planes[3], planes[5], planes[0], out topFarLeft);
+				PRPMath.PlanesIntersect(planes[3], planes[5], planes[1], out topFarRight);
+				PRPMath.PlanesIntersect(planes[3], planes[4], planes[1], out topNearRight);
+				PRPMath.PlanesIntersect(planes[2], planes[4], planes[0], out botNearLeft);
+				PRPMath.PlanesIntersect(planes[2], planes[5], planes[0], out botFarLeft);
+				PRPMath.PlanesIntersect(planes[2], planes[5], planes[1], out botFarRight);
+				PRPMath.PlanesIntersect(planes[2], planes[4], planes[1], out botNearRight);
+			}
+		}
 
 		private static PRPDebugger instance;
 		public static PRPDebugger I {
@@ -18,6 +41,8 @@ namespace PRP.PortalSystem {
 		public static List<Vector3> debugPositions = new List<Vector3>();
 		public static List<Plane> debugPlanes = new List<Plane>();
 		public static List<Color> debugPlanesColor = new List<Color>();
+		public static List<FrustumCorners> debugCullingFrustums = new List<FrustumCorners>();
+		public static List<Color> debugCullingFrustumColors = new List<Color>();
 
 		public void AddCamera(VirtualPortalCamera cam) {
 			cameras.Add(cam);
@@ -44,6 +69,16 @@ namespace PRP.PortalSystem {
 			debugPlanesColor.Clear();
 		}
 
+		public static void AddDebugCullingFrustum(Plane[] planes, Color color) {
+			debugCullingFrustums.Add(new FrustumCorners(planes));
+			debugCullingFrustumColors.Add(color);
+		}
+
+		public static void ClearDebugCullingFrustums() {
+			debugCullingFrustums.Clear();
+			debugCullingFrustumColors.Clear();
+		}
+
 		private void OnDrawGizmos() {
 			Matrix4x4 tmpMat = Gizmos.matrix;
 			Color tmpCol = Gizmos.color;
@@ -68,6 +103,24 @@ namespace PRP.PortalSystem {
 
 			for (int i = 0; i < debugPlanes.Count; i++) {
 				DrawPlaneGizmo(debugPlanes[i], debugPlanesColor[i]);
+			}
+			
+			for (int i = 0; i < debugCullingFrustums.Count; i++) {
+				Gizmos.color = debugCullingFrustumColors[i];
+				Gizmos.DrawLine(debugCullingFrustums[i].topNearLeft, debugCullingFrustums[i].topFarLeft);
+				Gizmos.DrawLine(debugCullingFrustums[i].topNearRight, debugCullingFrustums[i].topFarRight);
+				Gizmos.DrawLine(debugCullingFrustums[i].botNearLeft, debugCullingFrustums[i].botFarLeft);
+				Gizmos.DrawLine(debugCullingFrustums[i].botNearRight, debugCullingFrustums[i].botFarRight);
+
+				Gizmos.DrawLine(debugCullingFrustums[i].topNearLeft, debugCullingFrustums[i].botNearLeft);
+				Gizmos.DrawLine(debugCullingFrustums[i].topFarLeft, debugCullingFrustums[i].botFarLeft);
+				Gizmos.DrawLine(debugCullingFrustums[i].topFarRight, debugCullingFrustums[i].botFarRight);
+				Gizmos.DrawLine(debugCullingFrustums[i].topNearRight, debugCullingFrustums[i].botNearRight);
+
+				Gizmos.DrawLine(debugCullingFrustums[i].topNearLeft, debugCullingFrustums[i].topNearRight);
+				Gizmos.DrawLine(debugCullingFrustums[i].topFarLeft, debugCullingFrustums[i].topFarRight);
+				Gizmos.DrawLine(debugCullingFrustums[i].botNearLeft, debugCullingFrustums[i].botNearRight);
+				Gizmos.DrawLine(debugCullingFrustums[i].botFarLeft, debugCullingFrustums[i].botFarRight);
 			}
 
 
