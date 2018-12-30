@@ -5,7 +5,7 @@ namespace PRP.PortalSystem {
 	public class Portalable : MonoBehaviour {
 
 		private class PortalableElement {
-			private PortaledCopy portaledClone;
+			private PortalContact portaledClone;
 
 			public GameObject original;
 			public MeshFilter originalFilter;
@@ -18,7 +18,7 @@ namespace PRP.PortalSystem {
 
 			public PortalableContext context = PortalableContext.Nominal;
 			
-			public PortalableElement(PortaledCopy portaledClone, GameObject ori) {
+			public PortalableElement(PortalContact portaledClone, GameObject ori) {
 				this.portaledClone = portaledClone;
 				original = ori;
 				originalRenderer = original.GetComponent<MeshRenderer>();
@@ -107,20 +107,28 @@ namespace PRP.PortalSystem {
 
 					clonedMesh.Slice(new Plane(clonedLocalCorners[0], clonedLocalCorners[1], clonedLocalCorners[2]));
 					originalMesh.Slice(new Plane(originalLocalCorners[0], originalLocalCorners[1], originalLocalCorners[2]));
+					
 				}
 			}
 
 		}
 
-		private class PortaledCopy {
+		private class PortalContact {
 			public GameObject original;
 			public Portal portal;
 			public List<PortalableElement> portalableElements = new List<PortalableElement>();
 			public int elementCountNonNominal = 0;
 
-			public PortaledCopy(GameObject original, Portal p) {
+			public List<Collider> subColliders;
+			public Collider[] ignored = new Collider[32];
+			public int ignoredCount = 0;
+
+			public PortalContact(GameObject original, Portal p, List<Collider> subColliders) {
 				this.original = original;
 				portal = p;
+				portal.GetExcludedColliders(ref ignored, ref ignoredCount);
+				this.subColliders = subColliders;
+				SetIgnoreState(true);
 				InitializeElements(this.original);
 			}
 
@@ -133,7 +141,17 @@ namespace PRP.PortalSystem {
 				}
 			}
 
+			private void SetIgnoreState(bool state) {
+				foreach (Collider subCol in subColliders) {
+					for (int i = 0; i < ignoredCount; i++) {
+						Physics.IgnoreCollision(subCol, ignored[i], state);
+					}
+					portal.SetWarpedIgnored(subCol, !state);
+				}
+			}
+
 			public void DestroyClone() {
+				SetIgnoreState(false);
 				foreach (PortalableElement portalableElem in portalableElements) {
 					portalableElem.DestroyClone();
 				}
@@ -148,13 +166,21 @@ namespace PRP.PortalSystem {
 
 		private Vector3 previousPosition;
 		private List<MeshRenderer> renderers = new List<MeshRenderer>();
-		private Dictionary<Portal, PortaledCopy> clones = new Dictionary<Portal, PortaledCopy>();
+		private Dictionary<Portal, PortalContact> clones = new Dictionary<Portal, PortalContact>();
 		private Rigidbody rb;
+		private List<Collider> subColliders = new List<Collider>();
 
-		private void Awake() {
+		private Collider[] ignoredColliders = new Collider[32];
+		private int ignoredColliderCount = 0;
+
+		private void Start() {
 			previousPosition = transform.position;
 			rb = GetComponent<Rigidbody>();
 			transform.GetComponentsInChildren(renderers);
+			transform.GetComponentsInChildren(subColliders);
+			foreach (Collider col in subColliders) {
+				PortalsManager.I.IgnoreFromAllWarpedColliders(col);
+			}
 		}
 
 		private void Update() {
@@ -182,12 +208,12 @@ namespace PRP.PortalSystem {
 				}
 			}
 			List<Portal> toRemove = new List<Portal>();
-			foreach (KeyValuePair<Portal, PortaledCopy> pair in clones) {
+			foreach (KeyValuePair<Portal, PortalContact> pair in clones) {
 				if (!touched.Contains(pair.Key)) { // Ends Touching
 					//Debug.Log("Touch end");
 					pair.Value.DestroyClone();
 					toRemove.Add(pair.Key);
-					rb.detectCollisions = true;
+					//rb.detectCollisions = true;
 				}
 			}
 			foreach (Portal rm in toRemove) {
@@ -196,14 +222,14 @@ namespace PRP.PortalSystem {
 			foreach (Portal portal in touched) {
 				if (!clones.ContainsKey(portal)) { // Start touching
 					//Debug.Log("Touch start");
-					clones.Add(portal, new PortaledCopy(gameObject, portal));
-					rb.detectCollisions = false;
+					clones.Add(portal, new PortalContact(gameObject, portal, subColliders));
+					//rb.detectCollisions = false;
 				}
 			}
 		}
 
 		private void UpdateClones() {
-			foreach (PortaledCopy clone in clones.Values) {
+			foreach (PortalContact clone in clones.Values) {
 				clone.Update();
 			}
 		}

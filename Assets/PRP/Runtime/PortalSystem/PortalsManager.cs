@@ -69,5 +69,11 @@ namespace PRP.PortalSystem {
 			}
 		}
 
+		public void IgnoreFromAllWarpedColliders(Collider col) {
+			foreach (Portal portal in portals) {
+				portal.SetWarpedIgnored(col, true);
+			}
+		}
+
 	}
 }

@@ -1,4 +1,5 @@
-﻿using System.Runtime.InteropServices;
+﻿using System.Collections.Generic;
+using System.Runtime.InteropServices;
 using UnityEngine;
 using UnityEngine.Experimental.Rendering;
 
@@ -31,9 +32,23 @@ namespace PRP.PortalSystem {
 		[System.NonSerialized] public Vector3[] corners = new Vector3[4];
 		[System.NonSerialized] public Vector3 middle;
 
+		private BoxCollider exclusionZone;
+		private BoxCollider inclusionZone;
+		private Collider[] includedColliders = new Collider[64];
+		private int includedColliderCount = 0;
+
+		private Transform warpedCollidersParent;
+		private List<Collider> warpedColliders = new List<Collider>();
+		private bool warpedInitialized = false; // TODO synchronize warped colliders elegantly
+		private bool synchronized = false;
+
 		private void OnEnable() {
 			renderer = transform.GetComponentInChildren<Renderer>();
 			collider = GetComponent<Collider>();
+			exclusionZone = transform.Find("ExclusionZone").GetComponent<BoxCollider>();
+			exclusionZone.enabled = false;
+			inclusionZone = transform.Find("InclusionZone").GetComponent<BoxCollider>();
+			inclusionZone.enabled = false;
 			ComputeCorners();
 			PortalsManager.I.RegisterPortal(this);
 		}
@@ -41,6 +56,10 @@ namespace PRP.PortalSystem {
 		private void Update() {
 			ComputeCorners();
 			Synchronize();
+			if (!warpedInitialized && outputPortal.synchronized) {
+				InitializeWarpedColliders();
+				warpedInitialized = true;
+			}
 		}
 
 		private void OnDisable() {
@@ -60,11 +79,44 @@ namespace PRP.PortalSystem {
 		}
 
 		public void Synchronize() {
+			synchronized = true;
 			worldToPortal = portalMirroring * transform.worldToLocalMatrix;
 			worldToPortalWorld = outputPortal.transform.localToWorldMatrix * portalMirroring * transform.worldToLocalMatrix;
 			portalWorldToWorld = transform.localToWorldMatrix * portalMirroringInverse * outputPortal.transform.worldToLocalMatrix;
 			warpMatrix = outputPortal.transform.localToWorldMatrix * transform.worldToLocalMatrix;
 			plane = new Plane(-transform.forward, transform.position);
+		}
+
+		public void InitializeWarpedColliders() {
+			GameObject warpedColGO = new GameObject("WarpedColliders");
+			warpedCollidersParent = warpedColGO.transform;
+			warpedCollidersParent.SetParent(transform);
+			includedColliderCount = Physics.OverlapBoxNonAlloc(outputPortal.inclusionZone.transform.position, outputPortal.inclusionZone.size / 2f, includedColliders, outputPortal.inclusionZone.transform.rotation, ~LayerMask.GetMask("Portals", "Portalable", "Player"));
+			for (int i = 0; i < includedColliderCount; i++) {
+				warpedColliders.Add(CreateWarpedCopy(includedColliders[i]));
+			}
+		}
+
+		private Collider CreateWarpedCopy(Collider col) {
+			GameObject go = new GameObject("WarpedCollider");
+			Transform warpedTransform = go.transform;
+			warpedTransform.SetParent(warpedCollidersParent);
+			warpedTransform.position = outputPortal.TransformPosition(col.transform.position);
+			//warpedTransform.rotation = Quaternion.LookRotation(outputPortal.TransformDirection(col.transform.forward), outputPortal.TransformDirection(col.transform.up));
+			warpedTransform.localScale = col.transform.lossyScale; // Assumes no scaling from any of the warped object parents
+			Collider warpedCol = go.AddComponent(col.GetType()) as Collider;
+			warpedCol.CopyFrom(col);
+			return warpedCol;
+		}
+
+		public void SetWarpedIgnored(Collider col, bool ignored) {
+			foreach (Collider warped in warpedColliders) {
+				Physics.IgnoreCollision(col, warped, ignored);
+			}
+		}
+		
+		public void GetExcludedColliders(ref Collider[] excluded, ref int excludedCount) {
+			excludedCount = Physics.OverlapBoxNonAlloc(exclusionZone.transform.position, exclusionZone.size / 2f, excluded, exclusionZone.transform.rotation, ~LayerMask.GetMask("Portals"));
 		}
 
 		public Matrix4x4 TransformInverseMatrix(Matrix4x4 mat) {
