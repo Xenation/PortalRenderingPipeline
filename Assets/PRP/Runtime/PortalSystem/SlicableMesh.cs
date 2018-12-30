@@ -163,6 +163,23 @@ namespace PRP.PortalSystem {
 			mesh.SetTriangles(currentIndices, 0);
 		}
 
+		public PortalableContext GetContext(Vector3[] corners) {
+			if (originalVertices.Count == 0) return PortalableContext.Nominal;
+
+			Plane plane = new Plane(corners[0], corners[1], corners[2]); // Assumes quad
+			
+			// TODO check that vertices are in the frame of the portal (not just the plane)
+
+			bool startSide = plane.GetSide(originalVertices[0]);
+			for (int i = 1; i < originalVertices.Count; i++) {
+				if (plane.GetSide(originalVertices[i]) != startSide) {
+					return PortalableContext.Between;
+				}
+			}
+
+			return (startSide) ? PortalableContext.Nominal : PortalableContext.Portaled;
+		}
+
 		public static implicit operator Mesh(SlicableMesh slicableMesh) {
 			return slicableMesh.mesh;
 		}

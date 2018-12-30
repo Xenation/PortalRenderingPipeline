@@ -49,7 +49,6 @@ namespace PRP.PortalSystem {
 		}
 
 		public bool CheckTouchingPortal(Bounds worldBounds, out Portal transportPortal) {
-			Debug.DrawLine(worldBounds.min, worldBounds.max);
 			foreach (Portal portal in portals) {
 				if (portal.collider.bounds.Intersects(worldBounds)) { // TODO Not Ideal
 					transportPortal = portal;

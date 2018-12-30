@@ -39,6 +39,7 @@ namespace PRP.PortalSystem {
 		}
 
 		private void Update() {
+			ComputeCorners();
 			Synchronize();
 		}
 

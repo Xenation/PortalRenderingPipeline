@@ -4,68 +4,157 @@ using UnityEngine;
 namespace PRP.PortalSystem {
 	public class Portalable : MonoBehaviour {
 
-		private class PortalableMeshFilter {
+		private class PortalableElement {
+			private PortaledCopy portaledClone;
+
+			public GameObject original;
 			public MeshFilter originalFilter;
 			public MeshRenderer originalRenderer;
 			public SlicableMesh originalMesh;
+			public GameObject cloned;
 			public MeshFilter clonedFilter;
+			public MeshRenderer clonedRenderer;
 			public SlicableMesh clonedMesh;
-			public Portal transporter;
 
-			public PortalableMeshFilter(MeshFilter oriFilter, MeshRenderer oriRenderer) {
-				originalFilter = oriFilter;
-				originalRenderer = oriRenderer;
+			public PortalableContext context = PortalableContext.Nominal;
+			
+			public PortalableElement(PortaledCopy portaledClone, GameObject ori) {
+				this.portaledClone = portaledClone;
+				original = ori;
+				originalRenderer = original.GetComponent<MeshRenderer>();
+				originalFilter = original.GetComponent<MeshFilter>();
 				originalMesh = new SlicableMesh(originalFilter.mesh);
 			}
 
-			public void CreatePortaledClone() {
-				GameObject go = PRPUtils.InstantiateDummy(originalFilter.gameObject, originalFilter.transform, typeof(InstancedColor));
-				go.hideFlags = HideFlags.HideAndDontSave;
-				clonedFilter = go.GetComponent<MeshFilter>();
+			public void CreateClone() {
+				cloned = PRPUtils.InstantiateDummy(original, original.transform.parent, typeof(InstancedColor));
+				clonedRenderer = cloned.GetComponent<MeshRenderer>();
+				clonedFilter = cloned.GetComponent<MeshFilter>();
 				clonedMesh = new SlicableMesh(clonedFilter.mesh);
-
-				Portalable p = go.GetComponent<Portalable>();
-				if (p != null) {
-					Destroy(p);
-				}
 			}
 
-			public void DestroyPortaledClone() {
-				Destroy(clonedFilter.gameObject);
+			public void DestroyClone() {
+				if (cloned == null) return;
+				originalMesh.Revert();
+				originalRenderer.enabled = true;
+				cloned.transform.SetParent(null);
+				Destroy(cloned);
+				cloned = null;
+				clonedRenderer = null;
 				clonedFilter = null;
 				clonedMesh = null;
-				originalMesh.Revert();
 			}
 
 			public void Update() {
-				clonedFilter.gameObject.transform.position = transporter.TransformPosition(originalFilter.transform.position);
-				clonedFilter.gameObject.transform.rotation = Quaternion.LookRotation(transporter.TransformDirection(originalFilter.transform.forward));
-				Matrix4x4 toClonedWorld = clonedFilter.transform.localToWorldMatrix;
-				Matrix4x4 toOriginalWorld = originalFilter.transform.localToWorldMatrix;
-				Vector4 planeOutEq = new Vector4(transporter.outputPortal.plane.normal.x, transporter.outputPortal.plane.normal.y, transporter.outputPortal.plane.normal.z, transporter.outputPortal.plane.distance);
-				planeOutEq = toClonedWorld.transpose * planeOutEq;
-				Plane planeOut = new Plane(planeOutEq, planeOutEq.w);
-				Vector4 planeInEq = new Vector4(transporter.plane.normal.x, transporter.plane.normal.y, transporter.plane.normal.z, transporter.plane.distance);
-				planeInEq = toOriginalWorld.transpose * planeInEq;
-				Plane planeIn = new Plane(planeInEq, planeInEq.w);
-				//Plane planeOut = new Plane(toClonedLocal.MultiplyVector(transporter.outputPortal.plane.normal), toClonedLocal.MultiplyPoint3x4(transporter.outputPortal.plane.ClosestPointOnPlane(Vector3.zero)));
-				//Plane planeIn = new Plane(toOriginalLocal.MultiplyVector(transporter.plane.normal), toOriginalLocal.MultiplyPoint3x4(transporter.plane.ClosestPointOnPlane(Vector3.zero)));
-				clonedMesh.Slice(planeOut);
-				originalMesh.Slice(planeIn);
+				Portal portal = portaledClone.portal;
+				Matrix4x4 originalWTL = original.transform.worldToLocalMatrix;
+				Vector3[] originalLocalCorners = {
+					originalWTL.MultiplyPoint3x4(portal.corners[0]),
+					originalWTL.MultiplyPoint3x4(portal.corners[1]),
+					originalWTL.MultiplyPoint3x4(portal.corners[2]),
+					originalWTL.MultiplyPoint3x4(portal.corners[3]),
+				};
+				PortalableContext nContext = originalMesh.GetContext(originalLocalCorners);
+				if (context != nContext) { // Context Changes
+					//Debug.Log(context + " --> " + nContext);
+					switch (nContext) {
+						case PortalableContext.Nominal:
+							portaledClone.elementCountNonNominal--;
+							if (context == PortalableContext.Between) {
+								originalMesh.Revert();
+								DestroyClone();
+							} else if (context == PortalableContext.Portaled) {
+								DestroyClone();
+								originalRenderer.enabled = true;
+							}
+							break;
+						case PortalableContext.Between:
+							portaledClone.elementCountNonNominal++;
+							if (context == PortalableContext.Nominal) {
+								CreateClone();
+							} else if (context == PortalableContext.Portaled) {
+								originalRenderer.enabled = true;
+							}
+							break;
+						case PortalableContext.Portaled:
+							portaledClone.elementCountNonNominal++;
+							if (context == PortalableContext.Between) {
+								clonedMesh.Revert();
+								originalMesh.Revert();
+								originalRenderer.enabled = false;
+							} else if (context == PortalableContext.Nominal) {
+								originalRenderer.enabled = false;
+								CreateClone();
+							}
+							break;
+					}
+				}
+				context = nContext;
+
+				if (context == PortalableContext.Between || context == PortalableContext.Portaled) {
+					cloned.transform.position = portal.TransformPosition(original.transform.position);
+					cloned.transform.rotation = Quaternion.LookRotation(portal.TransformDirection(original.transform.forward), portal.TransformDirection(original.transform.up));
+				}
+
+				if (context == PortalableContext.Between) {
+					Matrix4x4 clonedWTL = cloned.transform.worldToLocalMatrix;
+					Vector3[] clonedLocalCorners = {
+						clonedWTL.MultiplyPoint3x4(portal.outputPortal.corners[0]),
+						clonedWTL.MultiplyPoint3x4(portal.outputPortal.corners[1]),
+						clonedWTL.MultiplyPoint3x4(portal.outputPortal.corners[2]),
+						clonedWTL.MultiplyPoint3x4(portal.outputPortal.corners[3]),
+					};
+
+					clonedMesh.Slice(new Plane(clonedLocalCorners[0], clonedLocalCorners[1], clonedLocalCorners[2]));
+					originalMesh.Slice(new Plane(originalLocalCorners[0], originalLocalCorners[1], originalLocalCorners[2]));
+				}
 			}
 
 		}
 
+		private class PortaledCopy {
+			public GameObject original;
+			public Portal portal;
+			public List<PortalableElement> portalableElements = new List<PortalableElement>();
+			public int elementCountNonNominal = 0;
+
+			public PortaledCopy(GameObject original, Portal p) {
+				this.original = original;
+				portal = p;
+				InitializeElements(this.original);
+			}
+
+			private void InitializeElements(GameObject root) {
+				if (root.GetComponent<MeshRenderer>() != null) {
+					portalableElements.Add(new PortalableElement(this, root));
+				}
+				foreach (Transform child in root.transform) {
+					InitializeElements(child.gameObject);
+				}
+			}
+
+			public void DestroyClone() {
+				foreach (PortalableElement portalableElem in portalableElements) {
+					portalableElem.DestroyClone();
+				}
+			}
+
+			public void Update() {
+				foreach (PortalableElement portalableElem in portalableElements) {
+					portalableElem.Update();
+				}
+			}
+		}
+
 		private Vector3 previousPosition;
-		private List<PortalableMeshFilter> portalableFilters = new List<PortalableMeshFilter>();
+		private List<MeshRenderer> renderers = new List<MeshRenderer>();
+		private Dictionary<Portal, PortaledCopy> clones = new Dictionary<Portal, PortaledCopy>();
 		private Rigidbody rb;
 
 		private void Awake() {
 			previousPosition = transform.position;
 			rb = GetComponent<Rigidbody>();
-			List<MeshRenderer> meshRenderer = new List<MeshRenderer>();
-			transform.GetComponentsInChildren(meshRenderer);
-			InitializeMeshes(meshRenderer);
+			transform.GetComponentsInChildren(renderers);
 		}
 
 		private void Update() {
@@ -73,36 +162,49 @@ namespace PRP.PortalSystem {
 			Portal transporter;
 			if (PortalsManager.I.CheckThroughPortal(previousPosition, currentPosition, out transporter)) {
 				transform.position = currentPosition = transporter.TransformPosition(currentPosition);
-				transform.rotation = Quaternion.LookRotation(transporter.TransformDirection(transform.forward));
+				transform.rotation = Quaternion.LookRotation(transporter.TransformDirection(transform.forward), transporter.TransformDirection(transform.up));
 				if (rb != null) {
 					rb.velocity = transporter.TransformDirection(rb.velocity);
 				}
 			}
 			previousPosition = currentPosition;
 
-			UpdateMeshes();
+			UpdateTouching();
+			UpdateClones();
 		}
 
-		private void InitializeMeshes(List<MeshRenderer> meshRenderers) {
-			foreach (MeshRenderer meshRenderer in meshRenderers) {
-				portalableFilters.Add(new PortalableMeshFilter(meshRenderer.GetComponent<MeshFilter>(), meshRenderer));
+		private void UpdateTouching() {
+			List<Portal> touched = new List<Portal>();
+			foreach (MeshRenderer rend in renderers) {
+				Portal portal;
+				if (PortalsManager.I.CheckTouchingPortal(rend.bounds, out portal)) {
+					touched.Add(portal);
+				}
+			}
+			List<Portal> toRemove = new List<Portal>();
+			foreach (KeyValuePair<Portal, PortaledCopy> pair in clones) {
+				if (!touched.Contains(pair.Key)) { // Ends Touching
+					//Debug.Log("Touch end");
+					pair.Value.DestroyClone();
+					toRemove.Add(pair.Key);
+					rb.detectCollisions = true;
+				}
+			}
+			foreach (Portal rm in toRemove) {
+				clones.Remove(rm);
+			}
+			foreach (Portal portal in touched) {
+				if (!clones.ContainsKey(portal)) { // Start touching
+					//Debug.Log("Touch start");
+					clones.Add(portal, new PortaledCopy(gameObject, portal));
+					rb.detectCollisions = false;
+				}
 			}
 		}
 
-		private void UpdateMeshes() {
-			foreach (PortalableMeshFilter portalableFilter in portalableFilters) {
-				if (PortalsManager.I.CheckTouchingPortal(portalableFilter.originalRenderer.bounds, out portalableFilter.transporter)) {
-					if (portalableFilter.clonedFilter == null) { // Starts Touching
-						portalableFilter.CreatePortaledClone();
-						rb.detectCollisions = false;
-					}
-					portalableFilter.Update();
-				} else {
-					if (portalableFilter.clonedFilter != null) { // Ends Touching
-						portalableFilter.DestroyPortaledClone();
-						rb.detectCollisions = true;
-					}
-				}
+		private void UpdateClones() {
+			foreach (PortaledCopy clone in clones.Values) {
+				clone.Update();
 			}
 		}
 

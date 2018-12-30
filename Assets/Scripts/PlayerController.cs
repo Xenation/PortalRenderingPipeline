@@ -48,7 +48,7 @@ namespace PRPDemo {
 			velocity.x = groundVel.x;
 			velocity.z = groundVel.z;
 
-			if (Physics.CheckBox(transform.position + Vector3.down, new Vector3(.25f, .1f, .25f), Quaternion.identity, ~LayerMask.GetMask("Player"))) {
+			if (Physics.CheckBox(transform.position + Vector3.down * 1.8f, new Vector3(.25f, .1f, .25f), Quaternion.identity, ~LayerMask.GetMask("Player"))) {
 				onGround = true;
 			} else {
 				onGround = false;

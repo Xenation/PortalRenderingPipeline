@@ -33,6 +33,14 @@ namespace PRP {
 			return instantiated;
 		}
 
+		public static GameObject InstantiateDummyRecursive(GameObject toInst, Transform parent, params Type[] componentsToCopy) {
+			GameObject root = InstantiateDummy(toInst, parent, componentsToCopy);
+			foreach (Transform child in toInst.transform) {
+				InstantiateDummyRecursive(child.gameObject, root.transform, componentsToCopy);
+			}
+			return root;
+		}
+
 		public static GameObject InstantiateNoChildren(GameObject toInst, Transform parent, params Type[] excludedComponents) {
 			GameObject instantiated = new GameObject(toInst.name);
 			instantiated.CopyComponentsFrom(toInst, excludedComponents);
