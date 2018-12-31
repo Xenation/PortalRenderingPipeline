@@ -102,7 +102,7 @@ namespace PRP.PortalSystem {
 			Transform warpedTransform = go.transform;
 			warpedTransform.SetParent(warpedCollidersParent);
 			warpedTransform.position = outputPortal.TransformPosition(col.transform.position);
-			//warpedTransform.rotation = Quaternion.LookRotation(outputPortal.TransformDirection(col.transform.forward), outputPortal.TransformDirection(col.transform.up));
+			warpedTransform.rotation = Quaternion.LookRotation(outputPortal.TransformDirection(col.transform.forward), outputPortal.TransformDirection(col.transform.up));
 			warpedTransform.localScale = col.transform.lossyScale; // Assumes no scaling from any of the warped object parents
 			Collider warpedCol = go.AddComponent(col.GetType()) as Collider;
 			warpedCol.CopyFrom(col);
