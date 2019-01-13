@@ -39,10 +39,20 @@ namespace PRP.PortalSystem {
 
 		private Transform warpedCollidersParent;
 		private List<Collider> warpedColliders = new List<Collider>();
-		private bool warpedInitialized = false; // TODO synchronize warped colliders elegantly
-		private bool synchronized = false;
+		private bool initialized = false;
 
 		private void OnEnable() {
+			if (!initialized) {
+				Initialize();
+			}
+			if (!outputPortal.initialized) {
+				outputPortal.Initialize();
+			}
+			InitializeWarpedColliders();
+		}
+
+		private void Initialize() {
+			initialized = true;
 			renderer = transform.GetComponentInChildren<Renderer>();
 			collider = GetComponent<Collider>();
 			exclusionZone = transform.Find("ExclusionZone").GetComponent<BoxCollider>();
@@ -50,16 +60,13 @@ namespace PRP.PortalSystem {
 			inclusionZone = transform.Find("InclusionZone").GetComponent<BoxCollider>();
 			inclusionZone.enabled = false;
 			ComputeCorners();
+			Synchronize();
 			PortalsManager.I.RegisterPortal(this);
 		}
 
 		private void Update() {
 			ComputeCorners();
 			Synchronize();
-			if (!warpedInitialized && outputPortal.synchronized) {
-				InitializeWarpedColliders();
-				warpedInitialized = true;
-			}
 		}
 
 		private void OnDisable() {
@@ -79,7 +86,6 @@ namespace PRP.PortalSystem {
 		}
 
 		public void Synchronize() {
-			synchronized = true;
 			worldToPortal = portalMirroring * transform.worldToLocalMatrix;
 			worldToPortalWorld = outputPortal.transform.localToWorldMatrix * portalMirroring * transform.worldToLocalMatrix;
 			portalWorldToWorld = transform.localToWorldMatrix * portalMirroringInverse * outputPortal.transform.worldToLocalMatrix;
